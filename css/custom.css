@@ -1,0 +1,125 @@
+/* custom.css
+   Il tema Domus Neapolis sopra Bootstrap: nero, oro e avorio presi dal logo.
+   Per cambiare i colori del sito basta modificare le variabili qui sotto. */
+
+/* ---------- COLORI (tema chiaro) ---------- */
+:root,[data-bs-theme="light"]{
+  --dn-gold:#b98227;          /* oro per bordi e decorazioni */
+  --dn-gold-text:#8a6212;     /* oro per i testi (più scuro, si legge meglio) */
+  --dn-gold-grad:linear-gradient(135deg,#ecd49a 0%,#c99a43 42%,#9c6d1e 100%);
+  --dn-black:#171512;         /* nero dei blocchi (footer, newsletter, riquadri) */
+  --dn-card:#ffffff;
+  --dn-btn-bg:#171512; --dn-btn-ink:#f4efe3; --dn-btn-hover:#b98227; --dn-btn-hover-ink:#171512;
+
+  --bs-body-bg:#fbf9f4; --bs-body-color:#171512;
+  --bs-secondary-color:#5c5547; --bs-tertiary-bg:#f1ebdd; --bs-secondary-bg:#f1ebdd;
+  --bs-border-color:rgba(23,21,18,.16); --bs-emphasis-color:#171512;
+  --bs-link-color:#8a6212; --bs-link-hover-color:#171512;
+  --bs-body-font-family:'Source Serif 4','Source Serif Pro',Georgia,'Times New Roman',serif;
+  --bs-body-font-size:1.0625rem; --bs-body-line-height:1.7;
+}
+/* ---------- COLORI (tema scuro) ---------- */
+[data-bs-theme="dark"]{
+  --dn-gold:#d4a24a; --dn-gold-text:#dcb25d; --dn-black:#1f1b15; --dn-card:#1a1814;
+  --dn-btn-bg:#d4a24a; --dn-btn-ink:#171512; --dn-btn-hover:#ecd49a; --dn-btn-hover-ink:#171512;
+
+  --bs-body-bg:#0f0e0c; --bs-body-color:#f4efe3;
+  --bs-secondary-color:#b9af9b; --bs-tertiary-bg:#171512; --bs-secondary-bg:#171512;
+  --bs-border-color:rgba(244,239,227,.18); --bs-emphasis-color:#f4efe3;
+  --bs-link-color:#dcb25d; --bs-link-hover-color:#f4efe3;
+}
+
+/* ---------- CARATTERI ---------- */
+h1,h2,h3,h4,h5,h6,.navbar,.btn,.nav-link,.badge,.form-label,.accordion-button{font-family:'Montserrat','Avenir Next','Segoe UI',system-ui,sans-serif}
+h1,h2,h3,h4,h5,h6{font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.text-gold{color:var(--dn-gold-text)!important}
+.rule-gold{width:110px;height:2px;border:0;opacity:1;margin:28px auto 0;background:var(--dn-gold-grad)}
+
+/* ---------- LOGO: due versioni, una per tema ---------- */
+.logo-dark{display:none}
+[data-bs-theme="dark"] .logo-light{display:none}
+[data-bs-theme="dark"] .logo-dark{display:inline-block}
+
+/* ---------- MENU ---------- */
+.site-nav{position:sticky;top:0;z-index:1030;background:var(--bs-body-bg);border-bottom:1px solid var(--bs-border-color)}
+.site-nav::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--dn-gold-grad)}
+.wordmark{display:block;font:800 1.5rem/1 'Montserrat',sans-serif;letter-spacing:-.02em;color:var(--bs-body-color)}
+.wordmark small{display:flex;align-items:center;gap:7px;margin-top:5px;font:500 .6rem/1 'Montserrat',sans-serif;letter-spacing:.42em;color:var(--dn-gold-text)}
+.wordmark small::before,.wordmark small::after{content:"";height:1.5px;width:12px;background:var(--dn-gold)}
+.site-nav .nav-link{font-weight:600;font-size:.92rem;color:var(--bs-secondary-color);border-bottom:2px solid transparent}
+.site-nav .nav-link:hover,.site-nav .nav-link.active{color:var(--bs-body-color);border-bottom-color:var(--dn-gold)}
+.icon-btn{position:relative;width:42px;height:42px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--bs-border-color);border-radius:50%;background:none;color:var(--bs-body-color)}
+.icon-btn:hover{border-color:var(--dn-gold)}
+.icon-btn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.cart-badge{position:absolute;top:-5px;right:-5px;font-size:.68rem}
+
+/* ---------- PULSANTI (pulsanti Bootstrap con i nostri colori) ---------- */
+.btn{--bs-btn-border-radius:.75rem;--bs-btn-font-weight:700}
+.btn-primary{
+  --bs-btn-bg:var(--dn-btn-bg);--bs-btn-border-color:var(--dn-btn-bg);--bs-btn-color:var(--dn-btn-ink);
+  --bs-btn-hover-bg:var(--dn-btn-hover);--bs-btn-hover-border-color:var(--dn-btn-hover);--bs-btn-hover-color:var(--dn-btn-hover-ink);
+  --bs-btn-active-bg:var(--dn-btn-hover);--bs-btn-active-border-color:var(--dn-btn-hover);--bs-btn-active-color:var(--dn-btn-hover-ink);
+  --bs-btn-focus-shadow-rgb:185,130,39;
+}
+.btn-outline-primary{
+  --bs-btn-color:var(--bs-body-color);--bs-btn-border-color:var(--bs-body-color);
+  --bs-btn-hover-bg:var(--dn-btn-hover);--bs-btn-hover-border-color:var(--dn-btn-hover);--bs-btn-hover-color:var(--dn-btn-hover-ink);
+  --bs-btn-active-bg:var(--dn-btn-hover);--bs-btn-active-border-color:var(--dn-btn-hover);--bs-btn-active-color:var(--dn-btn-hover-ink);
+}
+.badge-gold{background:var(--dn-gold-grad);color:#171512}
+.nav-pills .nav-link{font-weight:700;font-size:.9rem;color:var(--bs-secondary-color);border:1px solid var(--bs-border-color);border-radius:.75rem}
+.nav-pills .nav-link.active{background:var(--dn-btn-bg);color:var(--dn-btn-ink);border-color:transparent}
+
+/* ---------- FORM, ACCORDION ---------- */
+.form-control,.form-select{background-color:var(--dn-card);padding:.8rem 1rem;border-radius:.6rem}
+.form-control:focus,.form-select:focus{border-color:var(--dn-gold);box-shadow:0 0 0 .25rem rgba(185,130,39,.25)}
+.accordion{--bs-accordion-bg:transparent;--bs-accordion-active-bg:var(--bs-tertiary-bg);--bs-accordion-active-color:var(--bs-body-color);--bs-accordion-btn-focus-box-shadow:0 0 0 .25rem rgba(185,130,39,.25)}
+.accordion-button{font-weight:700}
+
+/* ---------- BLOCCHI NERI (newsletter, footer): nel codice hanno data-bs-theme="dark" ---------- */
+.band-black{background:var(--dn-black);color:#f4efe3}
+.band-black .text-body-secondary{color:#b9af9b!important}
+.site-footer{border-top:3px solid var(--dn-gold)}
+.site-footer a{color:#b9af9b;text-decoration:none}
+.site-footer a:hover{color:#f4efe3}
+.site-footer h5{color:var(--dn-gold-text);font-size:1rem}
+
+/* ---------- RIQUADRI CATEGORIA (nero e oro alternati, come nel logo) ---------- */
+.world{display:flex;flex-direction:column;justify-content:flex-end;aspect-ratio:1/1.02;padding:1.4rem;border-radius:1rem;background:var(--dn-black);color:#f4efe3;text-decoration:none;border:1px solid rgba(212,162,74,.3);transition:transform .3s}
+.world:hover{transform:translateY(-5px);color:#f4efe3}
+.col:nth-child(even)>.world{background:var(--dn-gold-grad);color:#171512;border-color:transparent}
+.col:nth-child(even)>.world:hover{color:#171512}
+.world h3{font-size:1.4rem;margin:0 0 .15rem}
+.world span{font:600 .88rem 'Montserrat',sans-serif;opacity:.85}
+.step-n{font:800 2.8rem/1 'Montserrat',sans-serif;background:var(--dn-gold-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* ---------- PAGINA NAPOLI ---------- */
+.edicola{position:relative;max-width:380px;margin-inline:auto;aspect-ratio:1/1.24;display:grid;place-items:end center;padding-bottom:7%;background:radial-gradient(54% 44% at 50% 40%,rgba(230,196,116,.4),transparent 70%),var(--dn-black);border-radius:999px 999px 16px 16px;border:1px solid rgba(212,162,74,.4);box-shadow:0 22px 44px -22px rgba(0,0,0,.6)}
+.edicola::before{content:"";position:absolute;inset:11px;border-radius:999px 999px 8px 8px;border:1.5px solid rgba(212,162,74,.75);pointer-events:none}
+.edicola img{position: absolute; width: 100%;filter:drop-shadow(0 16px 14px rgba(0,0,0,.55))}
+.edicola-plate{position:relative;max-width:330px;margin:-24px auto 0}
+.skyline{max-width:min(860px,94%);height:auto}
+
+/* ---------- SCHEDE PRODOTTO ---------- */
+.card{--bs-card-bg:var(--dn-card);--bs-card-border-radius:.65rem;overflow:hidden}
+.product:hover{border-color:var(--dn-gold)}
+.statue-box{display:grid;place-items:center;aspect-ratio:1/1.02;background:radial-gradient(58% 48% at 50% 42%,rgba(226,190,110,.3),transparent 72%),var(--dn-black)}
+.statue-box img{width:100%;filter:drop-shadow(0 12px 12px rgba(0,0,0,.5));z-index: 1;}
+.price{font:800 1.45rem 'Montserrat',sans-serif}
+.cart-thumb{width:64px;height:72px;flex:none;display:grid;place-items:center;border-radius:.4rem;background:var(--dn-black)}
+.cart-thumb img{width:34px}
+.badge{z-index: 2;}
+
+/* ---------- SEGNAPOSTO (home modello) ---------- */
+.img-ph{display:grid;place-items:center;background:var(--bs-tertiary-bg);border:2px dashed var(--bs-border-color);border-radius:1rem;color:var(--bs-secondary-color);font:600 1rem 'Montserrat',sans-serif}
+.card .ratio .img-ph{border-radius:0;border:0;border-bottom:2px dashed var(--bs-border-color)}
+
+/* ---------- 404 ---------- */
+.nf-number{font:800 clamp(6.5rem,22vw,14rem)/1 'Montserrat',sans-serif;background:var(--dn-gold-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.legal-copy{max-width:1100px}
+.legal-copy article{line-height:1.75}
+.legal-copy h2{font-size:1.35rem;margin-top:2.25rem;margin-bottom:.75rem}
+.legal-copy a{overflow-wrap:anywhere}
+.legal-copy .table{font-size:.95rem}

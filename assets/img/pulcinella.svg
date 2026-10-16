@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260" role="img" aria-label="Statuetta di Pulcinella"><defs>
+<linearGradient id="wx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffdf6"/><stop offset="1" stop-color="#d6c9aa"/></linearGradient>
+<linearGradient id="gx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d28c"/><stop offset="1" stop-color="#a97a22"/></linearGradient>
+<linearGradient id="rx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e5584d"/><stop offset="1" stop-color="#9c2b24"/></linearGradient>
+<linearGradient id="bx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7dbdf2"/><stop offset="1" stop-color="#3f8fdc"/></linearGradient>
+</defs>
+<ellipse cx="100" cy="244" rx="68" ry="8" fill="rgba(0,0,0,.16)"/><rect x="42" y="214" width="116" height="26" rx="9" fill="url(#gx)"/><rect x="42" y="214" width="116" height="7" rx="3.5" fill="#fff" opacity=".35"/>
+<path d="M62 216C56 146 74 108 100 104C126 108 144 146 138 216Z" fill="url(#wx)"/>
+<path d="M74 120L46 160L58 170L84 142Z" fill="url(#wx)" stroke="#d6c9aa"/><path d="M126 120L154 160L142 170L116 142Z" fill="url(#wx)" stroke="#d6c9aa"/>
+<circle cx="50" cy="168" r="7" fill="#24334d"/><circle cx="150" cy="168" r="7" fill="#24334d"/>
+<circle cx="100" cy="134" r="4.5" fill="#24334d"/><circle cx="100" cy="156" r="4.5" fill="#24334d"/><circle cx="100" cy="178" r="4.5" fill="#24334d"/>
+<rect x="63" y="190" width="74" height="9" rx="4" fill="url(#rx)"/>
+<ellipse cx="100" cy="106" rx="28" ry="9" fill="url(#wx)" stroke="#d6c9aa"/>
+<circle cx="100" cy="86" r="17" fill="#efc6a2"/>
+<path d="M82 80C88 70 112 70 118 80C118 90 108 92 100 92C92 92 82 90 82 80Z" fill="#1b2230"/>
+<path d="M100 84L130 95L100 99Z" fill="#1b2230"/>
+<ellipse cx="93" cy="81" rx="2.6" ry="1.8" fill="#fff"/><ellipse cx="107" cy="81" rx="2.6" ry="1.8" fill="#fff"/>
+<path d="M94 103q6 4 12 0" stroke="#b14a3c" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+<path d="M80 74C84 50 92 28 114 12C108 34 114 54 121 74Z" fill="url(#wx)" stroke="#d6c9aa"/>
+<path d="M80 74H121" stroke="url(#rx)" stroke-width="5" stroke-linecap="round"/>
+<ellipse cx="79" cy="170" rx="5" ry="28" fill="#fff" opacity=".5" transform="rotate(6 79 170)"/></svg>

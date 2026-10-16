@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260" role="img" aria-label="Statuetta di calciatore con maglia numero 10"><defs>
+<linearGradient id="wx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffdf6"/><stop offset="1" stop-color="#d6c9aa"/></linearGradient>
+<linearGradient id="gx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d28c"/><stop offset="1" stop-color="#a97a22"/></linearGradient>
+<linearGradient id="rx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e5584d"/><stop offset="1" stop-color="#9c2b24"/></linearGradient>
+<linearGradient id="bx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7dbdf2"/><stop offset="1" stop-color="#3f8fdc"/></linearGradient>
+</defs>
+<ellipse cx="100" cy="244" rx="68" ry="8" fill="rgba(0,0,0,.16)"/><rect x="42" y="214" width="116" height="26" rx="9" fill="url(#gx)"/><rect x="42" y="214" width="116" height="7" rx="3.5" fill="#fff" opacity=".35"/>
+<path d="M84 168L80 210" stroke="#efc6a2" stroke-width="13" stroke-linecap="round"/><path d="M81 192L80 208" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/><ellipse cx="76" cy="211" rx="13" ry="6" fill="#1b2230"/>
+<path d="M116 168L132 194" stroke="#efc6a2" stroke-width="13" stroke-linecap="round"/><path d="M127 187L134 197" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/><ellipse cx="141" cy="200" rx="12" ry="6" fill="#1b2230" transform="rotate(30 141 200)"/>
+<path d="M66 144H134L132 176H104L100 164L96 176H68Z" fill="#3f8fdc" stroke="#d6c9aa" stroke-width="1"/>
+<path d="M72 96L50 62" stroke="#efc6a2" stroke-width="11" stroke-linecap="round"/><circle cx="48" cy="58" r="6.5" fill="#efc6a2"/>
+<path d="M128 96L150 114" stroke="#efc6a2" stroke-width="11" stroke-linecap="round"/><circle cx="153" cy="116" r="6.5" fill="#efc6a2"/>
+<path d="M70 90C82 82 118 82 130 90L136 148H64Z" fill="url(#wx)"/>
+<path d="M72 94L63 80M128 94L138 102" stroke="#e8edf5" stroke-width="17" stroke-linecap="round"/>
+<path d="M92 84Q100 95 108 84" stroke="#3f8fdc" stroke-width="3" fill="none" stroke-linecap="round"/>
+<text x="100" y="130" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="30" fill="#2476cc">10</text>
+<rect x="94" y="72" width="12" height="14" fill="#efc6a2"/>
+<circle cx="100" cy="62" r="16" fill="#efc6a2"/>
+<g fill="#2b1b13"><circle cx="86" cy="54" r="7.5"/><circle cx="96" cy="47" r="8"/><circle cx="108" cy="48" r="8"/><circle cx="116" cy="57" r="6.5"/><circle cx="84" cy="64" r="5"/><circle cx="117" cy="67" r="4.5"/></g>
+<circle cx="94" cy="63" r="1.6" fill="#3a2a22"/><circle cx="106" cy="63" r="1.6" fill="#3a2a22"/><path d="M95 71q5 4 10 0" stroke="#9a5a44" stroke-width="2" fill="none" stroke-linecap="round"/>
+<circle cx="156" cy="200" r="13" fill="#fff" stroke="#d6c9aa" stroke-width="1.5"/><polygon points="156,193 162,198 160,205 152,205 150,198" fill="#24334d"/></svg>

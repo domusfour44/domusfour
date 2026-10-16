@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260" role="img" aria-label="Statuetta di San Gennaro"><defs>
+<linearGradient id="wx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffdf6"/><stop offset="1" stop-color="#d6c9aa"/></linearGradient>
+<linearGradient id="gx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d28c"/><stop offset="1" stop-color="#a97a22"/></linearGradient>
+<linearGradient id="rx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e5584d"/><stop offset="1" stop-color="#9c2b24"/></linearGradient>
+<linearGradient id="bx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7dbdf2"/><stop offset="1" stop-color="#3f8fdc"/></linearGradient>
+</defs>
+<linearGradient id="cx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4b9be6"/><stop offset="1" stop-color="#1f5fa8"/></linearGradient>
+<ellipse cx="100" cy="244" rx="68" ry="8" fill="rgba(0,0,0,.16)"/><rect x="42" y="214" width="116" height="26" rx="9" fill="url(#gx)"/><rect x="42" y="214" width="116" height="7" rx="3.5" fill="#fff" opacity=".35"/>
+<circle class="halo" cx="100" cy="84" r="37" fill="none" stroke="url(#gx)" stroke-width="3.5" stroke-dasharray="2 7" stroke-linecap="round"/>
+<path d="M60 216C55 150 68 116 100 110C132 116 145 150 140 216Z" fill="url(#wx)"/>
+<path d="M72 134L50 152L58 166L76 156Z" fill="url(#wx)"/><circle cx="53" cy="160" r="6.5" fill="#efc6a2"/>
+<path d="M128 136L152 126L158 140L134 154Z" fill="url(#wx)"/><circle cx="154" cy="128" r="6.5" fill="#efc6a2"/>
+<rect x="148.5" y="92" width="11" height="32" rx="5.5" fill="url(#rx)" stroke="#fff" stroke-width="1.6"/><rect x="150.5" y="87" width="7" height="6" rx="2" fill="url(#gx)"/>
+<path d="M63 152C66 124 84 112 100 112C116 112 134 124 137 152C120 140 80 140 63 152Z" fill="url(#cx)"/>
+<path d="M89 118H111L118 214H82Z" fill="url(#cx)"/>
+<path d="M100 134v36M90 148h20" stroke="url(#gx)" stroke-width="4.5" stroke-linecap="round"/>
+<path d="M82 212H118" stroke="url(#gx)" stroke-width="4"/>
+<ellipse cx="100" cy="92" rx="15" ry="17" fill="#efc6a2"/>
+<path d="M85 96C86 118 114 118 115 96C108 106 92 106 85 96Z" fill="#5a4030"/>
+<circle cx="94" cy="90" r="1.7" fill="#3a2a22"/><circle cx="106" cy="90" r="1.7" fill="#3a2a22"/>
+<path d="M80 80L100 30L120 80C108 74 92 74 80 80Z" fill="url(#wx)"/>
+<path d="M80 80C92 74 108 74 120 80L118 87C106 81 94 81 82 87Z" fill="url(#gx)"/>
+<path d="M100 44v20M93 53h14" stroke="url(#gx)" stroke-width="3.4" stroke-linecap="round"/>
+<ellipse cx="79" cy="172" rx="5" ry="30" fill="#fff" opacity=".45" transform="rotate(8 79 172)"/></svg>
