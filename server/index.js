@@ -1,0 +1,106 @@
+import http from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { resolve, extname, sep } from 'node:path';
+import { createHmac, timingSafeEqual, scryptSync, randomBytes } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { database, resend, validateProduct } from './services.js';
+import { handleContact } from './contact.js';
+
+const root = fileURLToPath(new URL('../public/', import.meta.url)).replace(/[\\/]$/, '');
+const site = () => new URL(process.env.SITE_URL || 'http://localhost:3000');
+const fail = (status, message) => { throw Object.assign(new Error(message), { status }); };
+const secret = () => { if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) fail(503, 'Configurare SESSION_SECRET (almeno 32 caratteri).'); return process.env.SESSION_SECRET; };
+function sign(value) { const raw = Buffer.from(JSON.stringify(value)).toString('base64url'); return raw + '.' + createHmac('sha256', secret()).update(raw).digest('base64url'); }
+function verify(token, type) {
+  const [raw, signature] = String(token || '').split('.');
+  if (!raw || !signature) return null;
+  const expected = createHmac('sha256', secret()).update(raw).digest('base64url');
+  if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  try { const value = JSON.parse(Buffer.from(raw, 'base64url')); return value.type === type && value.exp > Date.now() ? value : null; } catch { return null; }
+}
+const limits = new Map();
+setInterval(() => { for (const [key, value] of limits) if (value.until < Date.now()) limits.delete(key); }, 60000).unref();
+function limit(req, route, max) {
+  const key = route + req.socket.remoteAddress;
+  const value = limits.get(key) || { count: 0, until: Date.now() + 900000 };
+  if (value.until < Date.now()) { value.count = 0; value.until = Date.now() + 900000; }
+  value.count++; limits.set(key, value);
+  if (value.count > max) fail(429, 'Troppi tentativi. Riprova fra 15 minuti.');
+}
+async function body(req) {
+  let result = '';
+  for await (const chunk of req) { result += chunk; if (Buffer.byteLength(result) > 16384) fail(413, 'Richiesta troppo grande.'); }
+  try { return JSON.parse(result); } catch { fail(400, 'Richiesta non valida.'); }
+}
+function admin(req) {
+  const cookie = /(?:^|; )dn_admin=([^;]+)/.exec(req.headers.cookie || '');
+  if (!verify(cookie?.[1], 'admin')) fail(401, 'Accedi come amministratore.');
+}
+const cookie = token => `dn_admin=${token}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=${token ? 28800 : 0}${site().protocol === 'https:' ? '; Secure' : ''}`;
+export const server = http.createServer(async (req, res) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-Frame-Options', 'DENY');
+  const json = (data, status = 200) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
+  try {
+    const url = new URL(req.url, site());
+    const path = url.pathname;
+    if (path === '/health' && req.method === 'GET') return json({ ok: true });
+    if (path === '/api/contact') {
+      if (req.method === 'POST') limit(req, path, 10);
+      return await handleContact(req, res);
+    }
+    if (path.startsWith('/api/')) {
+      if (!['GET','HEAD'].includes(req.method) && req.headers.origin !== site().origin) fail(403, 'Origine non consentita.');
+      if (path === '/api/products' && req.method === 'GET') return json(await database('products?active=eq.true&order=created_at.asc'));
+      if (path === '/api/admin/login' && req.method === 'POST') {
+        limit(req, path, 10);
+        const data = await body(req);
+        if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 16) fail(503, 'Accesso amministratore da configurare.');
+        const hash = value => scryptSync(String(value || ''), 'domus-admin', 32);
+        if (!timingSafeEqual(hash(data.password), hash(process.env.ADMIN_PASSWORD)) || data.email !== process.env.ADMIN_EMAIL) fail(401, 'Credenziali non valide.');
+        res.setHeader('Set-Cookie', cookie(sign({ type: 'admin', exp: Date.now() + 28800000, nonce: randomBytes(16).toString('hex') })));
+        return json({ ok: true });
+      }
+      if (path.startsWith('/api/admin/')) {
+        admin(req);
+        if (path === '/api/admin/session' && req.method === 'GET') return json({ ok: true });
+        if (path === '/api/admin/logout' && req.method === 'POST') { res.setHeader('Set-Cookie', cookie('')); return json({ ok: true }); }
+        if (path === '/api/admin/products' && req.method === 'GET') return json(await database('products?order=created_at.asc'));
+        if (path === '/api/admin/products' && req.method === 'POST') return json(await database('products', { method: 'POST', body: JSON.stringify(validateProduct(await body(req))) }), 201);
+        const match = /^\/api\/admin\/products\/([a-z0-9-]+)$/.exec(path);
+        if (match && ['PUT','DELETE'].includes(req.method)) {
+          let options = { method: 'DELETE' };
+          if (req.method === 'PUT') { const product = validateProduct(await body(req)); if (product.id !== match[1]) fail(400, 'Il codice prodotto non può essere modificato.'); options = { method: 'PATCH', body: JSON.stringify(product) }; }
+          const rows = await database(`products?id=eq.${match[1]}`, options);
+          if (!rows.length) fail(404, 'Prodotto non trovato.');
+          return json({ ok: true });
+        }
+      }
+      if (path === '/api/newsletter' && req.method === 'POST') {
+        limit(req, path, 5);
+        const data = await body(req);
+        if (data.consent !== true || typeof data.email !== 'string' || data.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) fail(400, 'Inserisci una email valida e accetta l’informativa.');
+        const token = sign({ type: 'newsletter', email: data.email.trim().toLowerCase(), exp: Date.now() + 86400000, consent_at: new Date().toISOString() });
+        const link = new URL('/newsletter-confirm.html', site()); link.searchParams.set('token', token);
+        await resend('emails', { from: process.env.RESEND_FROM, to: [data.email.trim()], subject: 'Conferma la tua iscrizione a Domus Neapolis', text: `Conferma la tua iscrizione alla newsletter aprendo questo link (valido 24 ore): ${link.href}\nSe non hai richiesto questa email, ignorala.` });
+        return json({ ok: true, message: 'Controlla la tua email e conferma l’iscrizione entro 24 ore.' });
+      }
+      if (path === '/api/newsletter/confirm' && req.method === 'POST') {
+        limit(req, path, 20);
+        const data = verify((await body(req)).token, 'newsletter');
+        if (!data) fail(400, 'Link non valido o scaduto. Iscriviti nuovamente dalla home.');
+        await resend('contacts', { email: data.email, unsubscribed: false });
+        return json({ ok: true, message: 'Iscrizione confermata. Grazie!' });
+      }
+      fail(404, 'Rotta non trovata.');
+    }
+    if (!['GET','HEAD'].includes(req.method)) fail(405, 'Metodo non consentito.');
+    const file = resolve(root, '.' + decodeURIComponent(path === '/' ? '/index.html' : path));
+    if (!file.startsWith(root + sep) || path.split('/').some(p => p.startsWith('.'))) fail(404, 'Pagina non trovata.');
+    const content = await readFile(file).catch(() => fail(404, 'Pagina non trovata.'));
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
+    res.writeHead(200, { 'Content-Type': types[extname(file)] || 'application/octet-stream' }); res.end(req.method === 'HEAD' ? undefined : content);
+  } catch (error) { json({ ok: false, error: error.status ? error.message : 'Errore interno del server.' }, error.status || 500); }
+});
+if (process.env.NODE_ENV !== 'test') server.listen(process.env.PORT || 3000, () => console.log('Domus Neapolis: server avviato.'));

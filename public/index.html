@@ -145,61 +145,7 @@
           <h2 class="display-6">Quelli apprezzati</h2>
           <p class="text-body-secondary">I prodotti più apprezzati dai nostri clienti.</p>
         </div>
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-          <div class="col">
-            <article class="card product h-100">
-              <div class="ratio ratio-1x1">
-                <img src="assets/img/maradonaOro.jpeg" class="object-fit-cover">
-              </div>
-              <div class="card-body d-flex flex-column">
-                <span class="small fw-bold text-gold">Neapolis</span>
-                <h3 class="h5 card-title mt-1">D10S</h3>
-                <p class="card-text small text-body-secondary">
-                  Diego Armando,<i> il Numero 10.</i>
-                </p>
-                <div class="d-flex justify-content-between align-items-center mt-auto pt-2">
-                  <span class="price">16,99€</span>
-                  <a class="btn btn-outline-primary btn-sm text-decoration-none" href="https://www.vinted.it/member/253373573">Acquista</a>
-                </div>
-              </div>
-            </article>
-          </div>
-          <div class="col">
-            <article class="card product h-100">
-              <div class="ratio ratio-1x1">
-                <img src="assets/img/sanGennaroOro.jpeg" class="object-fit-cover">
-              </div>
-              <div class="card-body d-flex flex-column">
-                <span class="small fw-bold text-gold">Neapolis</span>
-                <h3 class="h5 card-title mt-1">San Gennaro</h3>
-                <p class="card-text small text-body-secondary">
-                  Il patrono della città più bella del mondo.
-                </p>
-                <div class="d-flex justify-content-between align-items-center mt-auto pt-2">
-                  <span class="price">14,99€</span>
-                <a class="btn btn-outline-primary btn-sm text-decoration-none" href="https://www.vinted.it/member/253373573">Acquista</a> </div>
-              </div>
-            </article>
-          </div>
-          <div class="col" hidden>
-            <article class="card product h-100">
-              <div class="ratio ratio-1x1">
-                <div class="img-ph">&lt;immagine&gt;</div>
-              </div>
-              <div class="card-body d-flex flex-column">
-                <span class="small fw-bold text-gold">&lt;categoria&gt;</span>
-                <h3 class="h5 card-title mt-1">&lt;nome prodotto&gt;</h3>
-                <p class="card-text small text-body-secondary">
-                  &lt;frase&gt;
-                </p>
-                <div class="d-flex justify-content-between align-items-center mt-auto pt-2">
-                  <span class="price">&lt;prezzo&gt;</span>
-                  <a class="btn btn-outline-primary btn-sm" href="#">&lt;bottone&gt;</a>
-                </div>
-              </div>
-            </article>
-          </div>
-        </div>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" data-products data-featured><p role="status">Caricamento prodotti…</p></div>
         <div class="mt-5">
           <a class="btn btn-outline-primary" href="collezione.html">Vedi tutta la collezione</a>
         </div>
@@ -217,10 +163,10 @@
             </p>
           </div>
           <div class="col-lg-6">
-            <form class="row g-2 needs-validation" data-demo="Iscrizione completata" novalidate>
+            <form class="row g-2 needs-validation" data-newsletter novalidate>
               <div class="col-sm">
                 <label class="visually-hidden" for="nl-email">La tua email</label><input type="email"
-                  class="form-control" id="nl-email" placeholder="La tua email" required />
+                  class="form-control" id="nl-email" name="email" placeholder="La tua email" required />
                 <div class="invalid-feedback">
                   Inserisci un indirizzo email valido.
                 </div>
@@ -231,7 +177,7 @@
                 </button>
               </div>
               <div class="col-12 small text-body-secondary">
-                Iscriviti alla newsletter.
+                <label><input type="checkbox" name="consent" required> Acconsento a ricevere la newsletter.</label>
                 <a href="privacy.html">Informativa privacy</a>.
               </div>
             </form>
@@ -297,7 +243,7 @@
 
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="js/shop.js"></script>
+  <script src="js/shop.js"></script><script src="js/catalog.js"></script><script src="js/newsletter.js"></script>
 </body>
 
 </html>

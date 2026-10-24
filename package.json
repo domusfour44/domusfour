@@ -1,0 +1,1 @@
+{"name":"domus-neapolis","private":true,"type":"module","scripts":{"start":"node --env-file-if-exists=.env server/index.js","test":"node --test"},"engines":{"node":">=22"}}

@@ -1,4 +1,4 @@
-const CONTACT_API_URL = 'https://domusfour.onrender.com/api/contact';
+const CONTACT_API_URL = '/api/contact';
 const contactForm = document.querySelector('form[name="contatti"]');
 
 if (contactForm) {

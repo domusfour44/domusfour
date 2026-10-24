@@ -1,12 +1,11 @@
 /* shop.js
-   Carrello, filtro della collezione e moduli (demo).
-   Per aggiungere una statuetta NON serve toccare questo file: basta copiare una scheda nell'HTML. */
+   Carrello e filtri. Il catalogo viene caricato dal database. */
 (function () {
   var FREE_SHIPPING = 100; // soglia spedizione gratuita, in euro
   var cart = [];
   try { cart = JSON.parse(localStorage.getItem('dn_cart') || '[]') || []; } catch (e) { cart = []; }
 
-  var eur = function (n) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); };
+  var eur = function (n) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n); };
   var $ = function (s) { return document.querySelector(s); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var save = function () { try { localStorage.setItem('dn_cart', JSON.stringify(cart)); } catch (e) {} };
@@ -78,7 +77,16 @@
     f.outerHTML = '<div class="alert alert-success mb-0"><strong>' + f.dataset.demo + '</strong><br>Sito dimostrativo: nessun dato è stato davvero inviato.</div>';
   });
 
+  document.addEventListener('catalog-loaded', function (event) {
+    cart = cart.filter(function (item) {
+      var product = event.detail.find(function (p) { return p.id === item.id; });
+      if (!product || product.purchase_url) return false;
+      item.price = Number(product.price); item.name = product.name; item.img = product.image;
+      return true;
+    });
+    save(); render();
+  });
   render();
   var hash = location.hash.replace('#', '');
-  if (hash && document.querySelector('[data-filter="' + hash + '"]')) filterProducts(hash);
+  if (['santi','calcio','maschere','fortuna'].includes(hash)) filterProducts(hash);
 })();
