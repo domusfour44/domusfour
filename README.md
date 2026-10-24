@@ -7,8 +7,18 @@ Sito HTML con server Node.js 22+ senza dipendenze. Avvio: `npm start`. Verifica:
 1. Crea un progetto Supabase ed esegui `supabase/001_products.sql` nel SQL Editor. Lo script importa le sei statue della collezione e i due prodotti reali della home; non sovrascrive prodotti esistenti. Rivedi la selezione nell'admin prima di pubblicare.
 2. Copia `.env.example` in `.env`. Imposta URL Supabase e chiave **secret/server** (oppure legacy service_role). Non inserire queste chiavi nei file pubblici. Le tabelle hanno RLS attiva e nessun accesso anonimo: tutte le richieste passano dal server.
 3. Imposta `ADMIN_EMAIL`, una `ADMIN_PASSWORD` casuale di almeno 16 caratteri e `SESSION_SECRET` casuale di almeno 32 caratteri. Per generare un segreto: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. Accesso su `/admin.html`. Nessuna registrazione amministratori pubblica. Per revocare tutte le sessioni cambia SESSION_SECRET.
-4. Imposta `SITE_URL` all'origine pubblica esatta (es. https://www.domusfour.it) e usa HTTPS in produzione. Il server serve frontend e API sulla stessa origine; non ospitare soltanto public su un servizio statico senza proxy API.
-5. Su Render usa questo repository completo per il Web Service Node: Root Directory vuota (radice del repository), Build Command `npm install`, Start Command `npm start`, Health Check Path `/health`. Se il servizio era collegato al vecchio repository backend, collega questo repository e rimuovi l'eventuale Root Directory `domus-backend`. Il servizio deve includere sia `server/` sia `public/`. Il dominio del sito deve puntare a questo Web Service perché frontend e API siano sulla stessa origine.
+4. Imposta su Render `SITE_URL=https://domusfour.it` e usa HTTPS in produzione. Il dominio attuale è ospitato su Vercel: le API devono passare dal proxy descritto qui sotto. In locale usa `SITE_URL=http://localhost:3000`.
+5. Su Render usa questo repository completo per il Web Service Node: Root Directory vuota (radice del repository), Build Command `npm install`, Start Command `npm start`, Health Check Path `/health`. Se il servizio era collegato al vecchio repository backend, collega questo repository e rimuovi l'eventuale Root Directory `domus-backend`. Il servizio deve includere sia `server/` sia `public/`.
+
+## Dominio Vercel e API Render
+
+Il frontend pubblico è `https://domusfour.it`, mentre il backend è `https://domusfour.onrender.com`. I file `vercel.json` inoltrano `/api/*` e `/health` a Render: il browser continua a usare il dominio del sito, anche per il cookie HttpOnly dell'admin. Questo è un proxy, non un redirect del browser. Non servono chiamate cross-origin dal frontend né cookie di terze parti.
+
+Se la Root Directory del progetto Vercel è la radice del repository, viene usato `vercel.json` con output `public`. Se è `public`, viene usato `public/vercel.json`, senza cambiare la Root Directory. Le regole di inoltro dei due file devono rimanere uguali. Fare push e attendere un nuovo deploy Vercel per applicarle; un deploy soltanto su Render non aggiorna queste regole.
+
+Apri l'admin da `https://domusfour.it/admin.html`. Aprirlo dal dominio Render quando `SITE_URL` è `https://domusfour.it` produce intenzionalmente 403 alle richieste di modifica. Non cambiare SITE_URL al dominio Render per aggirare il controllo: deve corrispondere al dominio usato dai visitatori e dai link newsletter. `www.domusfour.it` è un'origine diversa e richiede un dominio/certificato valido e un redirect al dominio principale prima di usarlo.
+
+Dopo il deploy, `https://domusfour.it/health` deve rispondere con JSON `{"ok":true}`; `/api/products` deve restituire l'elenco e `/api/admin/session` deve restituire JSON con stato 401 quando non si è autenticati. Un 404 su queste rotte indica che il proxy Vercel non è applicato. Un 403 al login indica che l'origine non coincide con SITE_URL. Non pubblicare credenziali o risposte contenenti sessioni nei log di debug.
 
 ## Backend unificato e contatti Telegram
 

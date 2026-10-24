@@ -23,6 +23,9 @@ if (contactForm) {
         body: JSON.stringify(formData)
       });
 
+      if (!response.headers.get('content-type')?.includes('application/json')) {
+        throw new Error('Il servizio contatti non è raggiungibile. Verifica l’inoltro delle API da Vercel a Render.');
+      }
       const result = await response.json();
 
       if (!response.ok || !result.ok) {
@@ -33,7 +36,7 @@ if (contactForm) {
       window.alert('Messaggio inviato. Grazie!');
     } catch (error) {
       console.error('Errore invio form:', error);
-      window.alert('Non è stato possibile inviare il messaggio. Riprova più tardi.');
+      window.alert(error.message || 'Non è stato possibile inviare il messaggio. Riprova più tardi.');
     } finally {
       if (submitButton) {
         submitButton.disabled = false;
