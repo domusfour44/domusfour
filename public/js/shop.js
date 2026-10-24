@@ -8,9 +8,10 @@
   var eur = function (n) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n); };
   var $ = function (s) { return document.querySelector(s); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
-  var save = function () { try { localStorage.setItem('dn_cart', JSON.stringify(cart)); } catch (e) {} };
+  var save = function () { try { if (cart.length) localStorage.setItem('dn_cart', JSON.stringify(cart)); else localStorage.removeItem('dn_cart'); } catch (e) {} };
 
   function render() {
+    if (!$('#cart-items') || !$('#cart-footer')) return;
     var count = cart.reduce(function (a, i) { return a + i.q; }, 0);
     var total = cart.reduce(function (a, i) { return a + i.q * i.price; }, 0);
     var badge = $('#cart-count');
@@ -18,8 +19,8 @@
     badge.classList.toggle('d-none', count === 0);
 
     if (!cart.length) {
-      $('#cart-items').innerHTML = '<div class="text-center text-body-secondary py-5"><strong class="d-block text-body fs-5">Il carrello è vuoto</strong>Scegli una statuetta dalla collezione e aggiungila qui.</div>';
-      $('#cart-footer').innerHTML = '<a class="btn btn-primary w-100" href="collezione.html">Vai alla collezione</a>';
+      $('#cart-items').innerHTML = '<div class="text-center text-body-secondary py-5"><strong class="d-block text-body fs-5">Il carrello è vuoto</strong>Scegli una statuetta tra i nostri prodotti e aggiungila qui.</div>';
+      $('#cart-footer').innerHTML = '<a class="btn btn-primary w-100" href="napoli.html#prodotti">Scopri i prodotti</a>';
       return;
     }
     $('#cart-items').innerHTML = '<ul class="list-group list-group-flush">' + cart.map(function (i) {
@@ -88,5 +89,5 @@
   });
   render();
   var hash = location.hash.replace('#', '');
-  if (['santi','calcio','maschere','fortuna'].includes(hash)) filterProducts(hash);
+  if (['santi','calcio'].includes(hash)) filterProducts(hash);
 })();

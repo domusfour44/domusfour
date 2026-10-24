@@ -1,10 +1,11 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
-import { createHmac, timingSafeEqual, scryptSync, randomBytes } from 'node:crypto';
+import { createHmac, createHash, timingSafeEqual, scryptSync, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { database, resend, validateProduct } from './services.js';
+import { database, resend, prepareProduct, validateCategory } from './services.js';
 import { handleContact } from './contact.js';
+import { isCatalogProduct } from './products.js';
 
 const root = fileURLToPath(new URL('../public/', import.meta.url)).replace(/[\\/]$/, '');
 const site = () => new URL(process.env.SITE_URL || 'http://localhost:3000');
@@ -52,7 +53,7 @@ export const server = http.createServer(async (req, res) => {
     }
     if (path.startsWith('/api/')) {
       if (!['GET','HEAD'].includes(req.method) && req.headers.origin !== site().origin) fail(403, 'Origine non consentita.');
-      if (path === '/api/products' && req.method === 'GET') return json(await database('products?active=eq.true&order=created_at.asc'));
+      if (path === '/api/products' && req.method === 'GET') return json((await database('products?active=eq.true&select=*,category_info:categories(name)&order=created_at.asc')).filter(isCatalogProduct));
       if (path === '/api/admin/login' && req.method === 'POST') {
         limit(req, path, 10);
         const data = await body(req);
@@ -66,12 +67,14 @@ export const server = http.createServer(async (req, res) => {
         admin(req);
         if (path === '/api/admin/session' && req.method === 'GET') return json({ ok: true });
         if (path === '/api/admin/logout' && req.method === 'POST') { res.setHeader('Set-Cookie', cookie('')); return json({ ok: true }); }
-        if (path === '/api/admin/products' && req.method === 'GET') return json(await database('products?order=created_at.asc'));
-        if (path === '/api/admin/products' && req.method === 'POST') return json(await database('products', { method: 'POST', body: JSON.stringify(validateProduct(await body(req))) }), 201);
+        if (path === '/api/admin/categories' && req.method === 'GET') return json(await database('categories?active=eq.true&order=name.asc'));
+        if (path === '/api/admin/categories' && req.method === 'POST') return json(await database('categories', { method: 'POST', body: JSON.stringify(validateCategory(await body(req))) }), 201);
+        if (path === '/api/admin/products' && req.method === 'GET') return json((await database('products?order=created_at.asc')).filter(isCatalogProduct));
+        if (path === '/api/admin/products' && req.method === 'POST') return json(await database('products', { method: 'POST', body: JSON.stringify(await prepareProduct(await body(req))) }), 201);
         const match = /^\/api\/admin\/products\/([a-z0-9-]+)$/.exec(path);
         if (match && ['PUT','DELETE'].includes(req.method)) {
           let options = { method: 'DELETE' };
-          if (req.method === 'PUT') { const product = validateProduct(await body(req)); if (product.id !== match[1]) fail(400, 'Il codice prodotto non può essere modificato.'); options = { method: 'PATCH', body: JSON.stringify(product) }; }
+          if (req.method === 'PUT') { const product = await prepareProduct(await body(req)); if (product.id !== match[1]) fail(400, 'Il codice prodotto non può essere modificato.'); options = { method: 'PATCH', body: JSON.stringify(product) }; }
           const rows = await database(`products?id=eq.${match[1]}`, options);
           if (!rows.length) fail(404, 'Prodotto non trovato.');
           return json({ ok: true });
@@ -81,16 +84,23 @@ export const server = http.createServer(async (req, res) => {
         limit(req, path, 5);
         const data = await body(req);
         if (data.consent !== true || typeof data.email !== 'string' || data.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) fail(400, 'Inserisci una email valida e accetta l’informativa.');
-        const token = sign({ type: 'newsletter', email: data.email.trim().toLowerCase(), exp: Date.now() + 86400000, consent_at: new Date().toISOString() });
+        const token = sign({ type: 'newsletter', email: data.email.trim().toLowerCase(), exp: Date.now() + 86400000, consent_at: new Date().toISOString(), privacy_version: '2026-10-24' });
         const link = new URL('/newsletter-confirm.html', site()); link.searchParams.set('token', token);
         await resend('emails', { from: process.env.RESEND_FROM, to: [data.email.trim()], subject: 'Conferma la tua iscrizione a Domus Neapolis', text: `Conferma la tua iscrizione alla newsletter aprendo questo link (valido 24 ore): ${link.href}\nSe non hai richiesto questa email, ignorala.` });
         return json({ ok: true, message: 'Controlla la tua email e conferma l’iscrizione entro 24 ore.' });
       }
       if (path === '/api/newsletter/confirm' && req.method === 'POST') {
         limit(req, path, 20);
-        const data = verify((await body(req)).token, 'newsletter');
-        if (!data) fail(400, 'Link non valido o scaduto. Iscriviti nuovamente dalla home.');
+        const token = (await body(req)).token;
+        const data = verify(token, 'newsletter');
+        if (!data || data.privacy_version !== '2026-10-24') fail(400, 'Link non valido o scaduto. Iscriviti nuovamente dalla home.');
+        const confirmationId = createHash('sha256').update(token).digest('hex');
+        const recordPath = `newsletter_consents?confirmation_id=eq.${confirmationId}`;
+        const existing = await database(recordPath);
+        if (existing[0]?.synced) return json({ ok: true, message: 'Questa iscrizione è già stata confermata.' });
+        if (!existing.length) await database('newsletter_consents', { method: 'POST', body: JSON.stringify({ confirmation_id: confirmationId, email: data.email, requested_at: data.consent_at, privacy_version: data.privacy_version }) });
         await resend('contacts', { email: data.email, unsubscribed: false });
+        await database(recordPath, { method: 'PATCH', body: JSON.stringify({ synced: true }) });
         return json({ ok: true, message: 'Iscrizione confermata. Grazie!' });
       }
       fail(404, 'Rotta non trovata.');
@@ -99,7 +109,8 @@ export const server = http.createServer(async (req, res) => {
     const file = resolve(root, '.' + decodeURIComponent(path === '/' ? '/index.html' : path));
     if (!file.startsWith(root + sep) || path.split('/').some(p => p.startsWith('.'))) fail(404, 'Pagina non trovata.');
     const content = await readFile(file).catch(() => fail(404, 'Pagina non trovata.'));
-    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
+    if (['/newsletter-confirm.html', '/admin.html'].includes(path)) res.setHeader('Cache-Control', 'no-store');
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
     res.writeHead(200, { 'Content-Type': types[extname(file)] || 'application/octet-stream' }); res.end(req.method === 'HEAD' ? undefined : content);
   } catch (error) { json({ ok: false, error: error.status ? error.message : 'Errore interno del server.' }, error.status || 500); }
 });

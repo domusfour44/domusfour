@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const editor = $('#editor');
-let products = [], editing = null;
+let products = [], categories = [], editing = null;
 const escape = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const message = text => { $('#status').textContent = text; };
 function showAccess() { $('#access').hidden = false; $('#workspace').hidden = true; $('#logout').hidden = true; }
@@ -23,9 +23,30 @@ function render() {
   $('#products').innerHTML = visible.length ? visible.map(p => `<article class="admin-row"><img src="${escape(p.image)}" alt=""><div class="info"><h3 class="h6 mb-1">${escape(p.name)}</h3><span>${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(p.price)} · ${p.active ? 'Pubblicato' : 'Bozza'}${p.featured ? ' · In home' : ''}</span><small class="d-block text-body-secondary">${escape(p.id)}</small></div><div class="actions"><button class="btn btn-outline-primary btn-sm" data-edit="${escape(p.id)}" aria-label="Modifica ${escape(p.name)}">Modifica</button><button class="btn btn-outline-danger btn-sm" data-delete="${escape(p.id)}" aria-label="Elimina ${escape(p.name)}">Elimina</button></div></article>`).join('') : '<p>Nessun prodotto trovato.</p>';
 }
 async function load() {
-  products = await api('products'); render();
+  const result = await Promise.all([api('products'), api('categories')]);
+  products = result[0]; categories = result[1]; renderCategories(); render();
   $('#access').hidden = true; $('#workspace').hidden = false; $('#logout').hidden = false;
 }
+function renderCategories(selected = editor.elements.category.value) {
+  const select = editor.elements.category;
+  select.innerHTML = '<option value="">Scegli una categoria</option>' + categories.map(c => `<option value="${escape(c.id)}">${escape(c.name)}</option>`).join('');
+  select.value = categories.some(c => c.id === selected) ? selected : '';
+  $('#category-list').textContent = categories.length ? categories.map(c => c.name).join(' · ') : 'Non ci sono categorie. Crea la prima per aggiungere un prodotto.';
+}
+$('#category-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.target; if (!form.reportValidity()) return;
+  const button = form.querySelector('button'); button.disabled = true;
+  const status = $('#category-status'); status.textContent = 'Creazione in corso…';
+  try {
+    const created = await api('categories', 'POST', { name: form.elements.name.value });
+    categories = await api('categories');
+    renderCategories(created[0].id);
+    form.reset();
+    status.textContent = 'Categoria creata e selezionata nel prodotto.';
+  } catch (error) { status.textContent = error.message; }
+  finally { button.disabled = false; }
+});
 $('#login').addEventListener('submit', async event => {
   event.preventDefault(); const button = event.target.querySelector('button'); button.disabled = true;
   try { await api('login', 'POST', Object.fromEntries(new FormData(event.target))); event.target.reset(); await load(); message('Accesso effettuato.'); } catch (error) { message(error.message); } finally { button.disabled = false; }

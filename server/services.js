@@ -1,7 +1,14 @@
+import { isCatalogProduct } from './products.js';
+
 export async function remote(url, options) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) });
   const data = await response.json().catch(() => null);
-  if (!response.ok) throw Object.assign(new Error('Servizio temporaneamente non disponibile.'), { status: 502 });
+  if (!response.ok) {
+    if (data?.code === '23505') throw Object.assign(new Error('Nome o codice già presente. Scegli un nome diverso.'), { status: 409 });
+    if (data?.code === '23503') throw Object.assign(new Error('Categoria non disponibile. Aggiorna la pagina e riprova.'), { status: 400 });
+    if (['42P01', 'PGRST205', 'PGRST200'].includes(data?.code)) throw Object.assign(new Error('Database da aggiornare: esegui gli script SQL indicati nel README.'), { status: 503 });
+    throw Object.assign(new Error('Servizio temporaneamente non disponibile.'), { status: 502 });
+  }
   return data;
 }
 export function database(path, options = {}) {
@@ -16,8 +23,20 @@ export function resend(path, body) {
 export function validateProduct(data) {
   const fields = ['id','name','category','description','details','image','badge','purchase_url'];
   const product = Object.fromEntries(fields.map(k => [k, typeof data[k] === 'string' ? data[k].trim() : '']));
-  if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(product.id) || !product.name || product.name.length > 160 || !['santi','calcio','maschere','fortuna'].includes(product.category)) throw Object.assign(new Error('Controlla codice, nome e categoria.'), { status: 400 });
+  if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(product.id) || !product.name || product.name.length > 160 || !isCatalogProduct(product)) throw Object.assign(new Error('Usa un nuovo codice, una foto del prodotto e una categoria valida.'), { status: 400 });
   if (typeof data.price !== 'number' || !Number.isFinite(data.price) || data.price < 0 || data.price > 100000 || Math.abs(data.price * 100 - Math.round(data.price * 100)) > 0.00001) throw Object.assign(new Error('Prezzo non valido (massimo due decimali).'), { status: 400 });
   if (!/^(assets\/img\/[a-zA-Z0-9_.-]+|https:\/\/[^\s]+)$/.test(product.image) || (product.purchase_url && !/^https:\/\/[^\s]+$/.test(product.purchase_url)) || fields.some(k => product[k].length > 3000)) throw Object.assign(new Error('Immagine o link non valido. Usa HTTPS o assets/img/nome-file.'), { status: 400 });
   return { ...product, price: data.price, active: data.active === true, featured: data.featured === true };
+}
+export function validateCategory(data) {
+  const name = typeof data?.name === 'string' ? data.name.trim().replace(/\s+/g, ' ') : '';
+  const id = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  if (name.length < 2 || name.length > 80 || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(id) || ['maschere', 'fortuna', 'portafortuna'].includes(id)) throw Object.assign(new Error('Inserisci un nome di categoria valido, da 2 a 80 caratteri.'), { status: 400 });
+  return { id, name, active: true };
+}
+export async function prepareProduct(data) {
+  const product = validateProduct(data);
+  const categories = await database(`categories?id=eq.${product.category}&active=eq.true&select=id`);
+  if (!categories.length) throw Object.assign(new Error('La categoria non esiste. Creala prima di salvare il prodotto.'), { status: 400 });
+  return product;
 }

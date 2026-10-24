@@ -2,19 +2,16 @@
 <html lang="it" data-bs-theme="light">
 
 <head>
+  <meta name="referrer" content="no-referrer">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Domus Four</title>
   <meta name="description" content="&lt;descrizione del sito per Google&gt;" />
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23171512'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='800' text-anchor='middle' fill='%23d4a24a' font-family='Arial'%3ED%3C/text%3E%3C/svg%3E" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap"
-    rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-   <script src="https://kit.fontawesome.com/15d63d2e6a.js" crossorigin="anonymous"></script>
+  <link href="vendor/fonts/fonts.css" rel="stylesheet">
+  <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet" />
+   <link href="vendor/fontawesome/css/fontawesome.min.css" rel="stylesheet"><link href="vendor/fontawesome/css/solid.min.css" rel="stylesheet"><link href="vendor/fontawesome/css/regular.min.css" rel="stylesheet">
   <link href="css/custom.css" rel="stylesheet" />
   <script src="js/theme.js"></script>
 </head>
@@ -49,9 +46,6 @@
           <li class="nav-item">
             <a class="nav-link" href="napoli.html">Neapolis</a>
           </li>
-          <li class="nav-item" hidden>
-            <a class="nav-link" href="collezione.html">Collezione</a>
-          </li>
           <li class="nav-item">
             <a class="nav-link" href="contatti.html">Contatti</a>
           </li>
@@ -71,7 +65,7 @@
               passione.
             </p>
             <div class="d-flex flex-wrap gap-3 mt-4">
-              <a class="btn btn-primary btn-lg" href="collezione.html">Scopri i prodotti</a>
+              <a class="btn btn-primary btn-lg" href="napoli.html#prodotti">Scopri i prodotti</a>
               <a class="btn btn-outline-primary btn-lg" href="contatti.html">Contattaci</a>
             </div>
           </div>
@@ -87,14 +81,14 @@
     <div class="container">
       <div class="row row-cols-2 row-cols-lg-4 g-0 text-center border-top border-bottom">
         <div class="col p-3">
-          <strong class="d-block">Fatte a mano <i class="fa-regular fa-hand"></i></strong><small class="text-body-secondary">Fatte a mano e curate nel dettaglio.  </small>
+          <strong class="d-block">Fatte a mano <i class="fa-solid fa-hand"></i></strong><small class="text-body-secondary">Fatte a mano e curate nel dettaglio.  </small>
         </div>
         <div class="col p-3 border-start">
-          <strong class="d-block">Spedizione veloce <i class="fa-regular fa-truck"></i></strong><small class="text-body-secondary">Spedito entro 24
+          <strong class="d-block">Spedizione veloce <i class="fa-solid fa-truck"></i></strong><small class="text-body-secondary">Spedito entro 24
             dall'ordine. </small>
         </div>
         <div class="col p-3 border-start">
-          <strong class="d-block">Assistenza <i class="fa-regular fa-headphones"></i></strong><small class="text-body-secondary">Assistenza pre e post vendita.</small>
+          <strong class="d-block">Assistenza <i class="fa-solid fa-headphones"></i></strong><small class="text-body-secondary">Assistenza pre e post vendita.</small>
         </div>
         <div class="col p-3 border-start">
           <strong class="d-block">Dimensioni <i class="fa-solid fa-ruler-vertical"></i></i></strong><small class="text-body-secondary">Circa 11x9cm <i>[varia da statua a statua]</i></small>
@@ -147,7 +141,7 @@
         </div>
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" data-products data-featured><p role="status">Caricamento prodotti…</p></div>
         <div class="mt-5">
-          <a class="btn btn-outline-primary" href="collezione.html">Vedi tutta la collezione</a>
+          <a class="btn btn-outline-primary" href="napoli.html#prodotti">Vedi tutti i prodotti</a>
         </div>
       </div>
     </section>
@@ -177,8 +171,8 @@
                 </button>
               </div>
               <div class="col-12 small text-body-secondary">
-                <label><input type="checkbox" name="consent" required> Acconsento a ricevere la newsletter.</label>
-                <a href="privacy.html">Informativa privacy</a>.
+                <label><input type="checkbox" name="consent" required> Acconsento a ricevere via email novità e offerte di DomusFour. Posso revocare il consenso in ogni momento.</label>
+                <a href="privacy.html#newsletter">Informativa privacy</a>.
               </div>
             </form>
           </div>
@@ -214,7 +208,6 @@
           <h5>Esplora</h5>
           <ul class="list-unstyled small">
             <li class="mb-2"><a href="napoli.html">Neapolis</a></li>
-            <li class="mb-2"><a href="collezione.html">Collezione</a></li>
           </ul>
         </div>
         <div class="col-lg-3">
@@ -242,7 +235,7 @@
   </footer>
 
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="js/shop.js"></script><script src="js/catalog.js"></script><script src="js/newsletter.js"></script>
 </body>
 

@@ -5,7 +5,37 @@
   "installCommand": "",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://domusfour.onrender.com/api/:path*" },
-    { "source": "/health", "destination": "https://domusfour.onrender.com/health" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://domusfour.onrender.com/api/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://domusfour.onrender.com/health"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/newsletter-confirm.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
   ]
 }

@@ -133,7 +133,7 @@ export async function handleContact(request, response) {
     return;
   }
 
-  if (!nome || !email || !numero || !testo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!nome || !email || !testo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     sendJson(response, 400, { ok: false, error: 'Controlla i campi obbligatori' });
     return;
   }
@@ -154,7 +154,7 @@ export async function handleContact(request, response) {
     'Nome: ' + nome,
     'Email: ' + email,
     'Di cosa hai bisogno: ' + motivoLabel,
-    'Telefono: ' + numero,
+    'Telefono: ' + (numero || 'Non indicato'),
     'Messaggio: ' + testo
   ].join('\n');
 
