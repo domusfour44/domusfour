@@ -16,9 +16,9 @@ export function database(path, options = {}) {
   if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) throw Object.assign(new Error('Database da configurare.'), { status: 503 });
   return remote(`${SUPABASE_URL}/rest/v1/${path}`, { ...options, headers: { apikey: SUPABASE_SECRET_KEY, Authorization: `Bearer ${SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation', ...options.headers } });
 }
-export function resend(path, body) {
+export function resend(path, body, headers = {}) {
   if (!process.env.RESEND_API_KEY) throw Object.assign(new Error('Newsletter da configurare.'), { status: 503 });
-  return remote(`https://api.resend.com/${path}`, { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return remote(`https://api.resend.com/${path}`, { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
 }
 export function validateProduct(data) {
   const fields = ['id','name','category','description','details','image','badge','purchase_url'];

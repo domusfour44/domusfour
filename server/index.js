@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { database, resend, prepareProduct, validateCategory } from './services.js';
 import { handleContact } from './contact.js';
 import { isCatalogProduct } from './products.js';
+import { validTicketId, sendTicketReceipt } from './tickets.js';
 
 const root = fileURLToPath(new URL('../public/', import.meta.url)).replace(/[\\/]$/, '');
 const site = () => new URL(process.env.SITE_URL || 'http://localhost:3000');
@@ -67,6 +68,29 @@ export const server = http.createServer(async (req, res) => {
         admin(req);
         if (path === '/api/admin/session' && req.method === 'GET') return json({ ok: true });
         if (path === '/api/admin/logout' && req.method === 'POST') { res.setHeader('Set-Cookie', cookie('')); return json({ ok: true }); }
+        if (path === '/api/admin/tickets' && req.method === 'GET') {
+          const offset = Number(url.searchParams.get('offset') || 0);
+          const status = url.searchParams.get('status');
+          if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000000 || (status && !['new','in_progress','closed'].includes(status))) fail(400, 'Filtro ticket non valido.');
+          return json(await database(`contact_tickets?order=created_at.desc,id.desc&limit=50&offset=${offset}${status ? `&status=eq.${status}` : ''}`));
+        }
+        const ticketMatch = /^\/api\/admin\/tickets\/([^/]+)(\/receipt)?$/.exec(path);
+        if (ticketMatch && validTicketId(ticketMatch[1])) {
+          const ticketPath = `contact_tickets?id=eq.${ticketMatch[1]}`;
+          if (!ticketMatch[2] && req.method === 'PATCH') {
+            const { status } = await body(req);
+            if (!['new','in_progress','closed'].includes(status)) fail(400, 'Stato ticket non valido.');
+            const rows = await database(ticketPath, { method: 'PATCH', body: JSON.stringify({ status }) });
+            if (!rows.length) fail(404, 'Ticket non trovato.');
+            return json({ ok: true });
+          }
+          if (ticketMatch[2] && req.method === 'POST') {
+            const rows = await database(ticketPath);
+            if (!rows.length) fail(404, 'Ticket non trovato.');
+            if (!await sendTicketReceipt(rows[0])) fail(502, 'Ticket salvato, ma la ricevuta non è stata inviata. Verifica Resend e riprova.');
+            return json({ ok: true });
+          }
+        }
         if (path === '/api/admin/categories' && req.method === 'GET') return json(await database('categories?active=eq.true&order=name.asc'));
         if (path === '/api/admin/categories' && req.method === 'POST') return json(await database('categories', { method: 'POST', body: JSON.stringify(validateCategory(await body(req))) }), 201);
         if (path === '/api/admin/products' && req.method === 'GET') return json((await database('products?order=created_at.asc')).filter(isCatalogProduct));
@@ -84,7 +108,7 @@ export const server = http.createServer(async (req, res) => {
         limit(req, path, 5);
         const data = await body(req);
         if (data.consent !== true || typeof data.email !== 'string' || data.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) fail(400, 'Inserisci una email valida e accetta l’informativa.');
-        const token = sign({ type: 'newsletter', email: data.email.trim().toLowerCase(), exp: Date.now() + 86400000, consent_at: new Date().toISOString(), privacy_version: '2026-10-24' });
+        const token = sign({ type: 'newsletter', email: data.email.trim().toLowerCase(), exp: Date.now() + 86400000, consent_at: new Date().toISOString(), privacy_version: '2026-10-25' });
         const link = new URL('/newsletter-confirm.html', site()); link.searchParams.set('token', token);
         await resend('emails', { from: process.env.RESEND_FROM, to: [data.email.trim()], subject: 'Conferma la tua iscrizione a Domus Neapolis', text: `Conferma la tua iscrizione alla newsletter aprendo questo link (valido 24 ore): ${link.href}\nSe non hai richiesto questa email, ignorala.` });
         return json({ ok: true, message: 'Controlla la tua email e conferma l’iscrizione entro 24 ore.' });
@@ -93,7 +117,7 @@ export const server = http.createServer(async (req, res) => {
         limit(req, path, 20);
         const token = (await body(req)).token;
         const data = verify(token, 'newsletter');
-        if (!data || data.privacy_version !== '2026-10-24') fail(400, 'Link non valido o scaduto. Iscriviti nuovamente dalla home.');
+        if (!data || data.privacy_version !== '2026-10-25') fail(400, 'Link non valido o scaduto. Iscriviti nuovamente dalla home.');
         const confirmationId = createHash('sha256').update(token).digest('hex');
         const recordPath = `newsletter_consents?confirmation_id=eq.${confirmationId}`;
         const existing = await database(recordPath);

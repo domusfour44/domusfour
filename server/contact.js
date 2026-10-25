@@ -1,6 +1,6 @@
-// Integrated from the existing Telegram contact backend.
+import { saveTicket, sendTicketReceipt, notifyTicketTelegram, ticketCode } from './tickets.js';
 const MAX_BODY_BYTES = 16 * 1024;
-const TELEGRAM_TIMEOUT_MS = 10000;
+
 
 const allowedOrigins = new Set(
   (process.env.ALLOWED_ORIGINS || '')
@@ -138,54 +138,13 @@ export async function handleContact(request, response) {
     return;
   }
 
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!botToken || !chatId) {
-    console.error('Mancano TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.');
-    sendJson(response, 500, { ok: false, error: 'Configurazione del server incompleta' });
+  let ticket;
+  try {
+    ticket = await saveTicket({ request_key: datiForm.request_key, name: nome, email: email.toLowerCase(), phone: numero, reason: motivoInput || 'altro', message: testo });
+  } catch (error) {
+    sendJson(response, error.status || 503, { ok: false, error: error.status ? error.message : 'Non è stato possibile salvare il messaggio. Riprova più tardi.' });
     return;
   }
-
-  const motivo = motivoInput || 'altro';
-  const motivoLabel = Object.hasOwn(reasons, motivo) ? reasons[motivo] : reasons.altro;
-  const message = [
-    'Nuovo messaggio dal sito',
-    'Nome: ' + nome,
-    'Email: ' + email,
-    'Di cosa hai bisogno: ' + motivoLabel,
-    'Telefono: ' + (numero || 'Non indicato'),
-    'Messaggio: ' + testo
-  ].join('\n');
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TELEGRAM_TIMEOUT_MS);
-
-  try {
-    const telegramResponse = await fetch(
-      'https://api.telegram.org/bot' + botToken + '/sendMessage',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: message }),
-        signal: controller.signal
-      }
-    );
-
-    const telegramResult = await telegramResponse.json().catch(() => null);
-
-    if (!telegramResponse.ok || !telegramResult || telegramResult.ok !== true) {
-      console.error('Errore Telegram:', telegramResult && telegramResult.description);
-      sendJson(response, 502, { ok: false, error: 'Telegram non ha accettato il messaggio' });
-      return;
-    }
-
-    sendJson(response, 200, { ok: true });
-  } catch (error) {
-    console.error('Errore durante l’invio a Telegram:', error.message);
-    sendJson(response, 502, { ok: false, error: 'Invio del messaggio non riuscito' });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const [emailSent] = await Promise.all([sendTicketReceipt(ticket), notifyTicketTelegram(ticket)]);
+  sendJson(response, 200, { ok: true, ticket_id: ticketCode(ticket), email_sent: emailSent });
 }
-

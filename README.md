@@ -22,6 +22,14 @@ Dopo il deploy, `https://domusfour.it/health` deve rispondere con JSON `{"ok":tr
 
 ## Backend unificato e contatti Telegram
 
+### Ticket contatti
+
+Prima del deploy esegui `supabase/005_contact_tickets.sql`. Ogni nuovo messaggio del modulo viene salvato su Supabase con numero univoco progressivo (es. DF-000123), poi viene inviata al cliente una ricevuta transazionale Resend con numero, oggetto e contenuto. Usa `RESEND_API_KEY` e il mittente verificato `RESEND_FROM` già configurati; `CONTACT_REPLY_TO` è facoltativo e indica la casella a cui rispondere. Le ricevute non iscrivono alla newsletter. L'accettazione di Resend non garantisce il recapito: controllare anche log/bounce del provider.
+
+Nell'admin la sezione **Ticket e messaggi** mostra le richieste, con dettaglio espandibile, stati Nuovo/In lavorazione/Chiuso, filtro e pagine da 50 ticket. Se una ricevuta fallisce, il ticket resta salvato e il pulsante **Riprova invio ricevuta** permette un nuovo tentativo. Le API ticket richiedono la sessione admin; non esiste un elenco pubblico né una pagina pubblica interrogabile per numero. Il form mostra numero e conferma nella pagina, senza finestre alert.
+
+Le ripetizioni della stessa richiesta dal form usano una chiave casuale tenuta solo in memoria per riutilizzare il ticket, senza salvarvi il testo nel browser. Cambiare contenuto genera una nuova chiave. Le email usano anche la chiave di idempotenza di Resend (finestra del provider: 24 ore). Se la pagina viene ricaricata, un nuovo invio è una nuova richiesta. Telegram rimane una notifica facoltativa: configurazione assente o invio fallito non impediscono di ricevere il ticket. Se il database non salva il ticket, il modulo segnala l'errore e conserva i campi. Non sono previsti import automatici dei vecchi messaggi Telegram o risposte dell'admin dentro il sito: per rispondere usa il recapito del cliente.
+
 Il vecchio backend è integrato in `server/contact.js`, importato dal server principale: nessun secondo processo da avviare e nessuna cartella da spostare. `POST /api/contact` mantiene i campi `nome`, `email`, `numero`, `motivo`, `messaggio` e l'invio Telegram preesistente. Accetta JSON e form URL-encoded, applica limiti ai campi e alle richieste, e restituisce gli errori di invio senza mostrare credenziali al client. `/health` restituisce lo stato di raggiungibilità del server, non verifica i servizi esterni.
 
 Su Render conserva `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` già configurati; aggiungi le nuove variabili di `.env.example`. `SITE_URL` autorizza il sito per i contatti. `ALLOWED_ORIGINS` può contenere origini aggiuntive separate da virgola per il solo form contatti, mantenendo la compatibilità con il vecchio frontend durante il passaggio. Questa opzione non autorizza accessi incrociati ad admin o newsletter. Le chiamate contatti senza Origin restano accettate come nel backend originale.

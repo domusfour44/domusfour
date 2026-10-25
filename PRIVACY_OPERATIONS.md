@@ -13,7 +13,7 @@ Le informative descrivono il codice, non certificano la configurazione degli acc
 
 - Verificare i ruoli e i contratti/DPA applicabili a Vercel, Render, Supabase, Resend, Telegram e al fornitore della posta. Controllare regioni effettive, subfornitori, trasferimenti fuori SEE e garanzie (decisione di adeguatezza o clausole e misure appropriate); completare la documentazione di conseguenza. Non dichiarare automaticamente che tutti i dati restano nell'UE.
 - Definire e applicare i tempi effettivi di conservazione dei log, della corrispondenza e delle prove, limitando l'accesso agli account. Se il trattamento tramite Telegram non è adeguato ai dati e ai contratti disponibili, sostituirlo prima di raccogliere messaggi. La chat del bot non deve essere considerata un canale per dati sensibili.
-- Richieste di accesso/cancellazione: verificare l'identità in modo proporzionato, poi intervenire su Telegram, posta, Resend e registro consensi. Rispondere nei termini GDPR, normalmente un mese, gestendo eventuali proroghe nei casi previsti.
+- Richieste di accesso/cancellazione: verificare l'identità in modo proporzionato, poi intervenire sui ticket Supabase, Telegram, posta, Resend e registro consensi. Rispondere nei termini GDPR, normalmente un mese, gestendo eventuali proroghe nei casi previsti.
 
 ## Dominio pubblicato
 
@@ -22,3 +22,7 @@ Le informative descrivono il codice, non certificano la configurazione degli acc
 - Non è stato aggiunto un banner superfluo per i soli strumenti tecnici. Prima di aggiungere analytics o marketing, introdurre il blocco preventivo, una scelta di rifiuto altrettanto accessibile e revoca del consenso, aggiornando le informative.
 
 Fonti: GDPR artt. 5, 6, 7, 12, 13 e 44–49 su https://eur-lex.europa.eu/eli/reg/2016/679/oj/ita · Linee guida del Garante https://www.garanteprivacy.it/home/docweb/-/docweb-display/docweb/9677876
+
+## Ticket assistenza
+
+Eseguire `supabase/005_contact_tickets.sql`. I messaggi sono ora conservati in `contact_tickets`, non solo su Telegram, e copiati nella ricevuta email al cliente. Includere questi archivi nelle richieste di accesso/cancellazione e nella revisione della conservazione. Chiudere un ticket non ne cancella i dati. Le ricevute sono comunicazioni di servizio, senza marketing o iscrizione automatica alla newsletter.

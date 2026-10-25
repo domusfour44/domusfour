@@ -85,7 +85,7 @@ test('catalog and CRUD forward validated data to Supabase; newsletter waits for 
     assert.equal(confirmation.status,200);
     assert.equal(calls.filter(c => /\/contacts$/.test(c.url)).length,1);
     assert.equal(consentRecords[0].email,'test@example.test');
-    assert.equal(consentRecords[0].privacy_version,'2026-10-24');
+    assert.equal(consentRecords[0].privacy_version,'2026-10-25');
     assert.equal(consentRecords[0].synced,true);
     assert.equal('ip' in consentRecords[0],false);
     const repeated=await fetch(base+'/api/newsletter/confirm',{method:'POST',headers:{Origin:base},body:JSON.stringify({token})});
@@ -109,40 +109,63 @@ test('contact validation blocks invalid submissions before contacting Telegram',
   }
   assert.equal((await fetch(base+'/api/contact',{method:'POST',headers:{Origin:base,'Content-Type':'text/plain'},body:'test'})).status,415);
 });
-test('integrated contacts preserve Telegram payload, accept both form formats and report upstream errors', async () => {
+test('tickets are saved once, emailed, managed privately and survive notification failures', async () => {
   const originalFetch = globalThis.fetch;
-  const oldToken = process.env.TELEGRAM_BOT_TOKEN, oldChat = process.env.TELEGRAM_CHAT_ID;
   process.env.TELEGRAM_BOT_TOKEN = 'test-token'; process.env.TELEGRAM_CHAT_ID = 'test-chat';
-  const calls = [];
-  let telegramOk = true;
-  globalThis.fetch = async (url, options = {}) => {
-    if (String(url).startsWith(base)) return originalFetch(url,options);
+  const tickets=[], calls=[];
+  let emailOk=true, telegramOk=true, databaseOk=true;
+  globalThis.fetch=async(url,options={})=>{
+    if(String(url).startsWith(base))return originalFetch(url,options);
     calls.push({url:String(url),...options});
-    return new Response(JSON.stringify({ok:telegramOk}),{status:telegramOk ? 200 : 502});
+    const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+    if(String(url).includes('/rest/v1/contact_tickets')){
+      if(!databaseOk)return reply({code:'unavailable'},503);
+      const target=new URL(url);
+      if(options.method==='POST'){
+        const input=JSON.parse(options.body);
+        if(tickets.some(t=>t.request_key===input.request_key))return reply([]);
+        const ticket={...input,id:'00000000-0000-4000-8000-'+String(tickets.length+1).padStart(12,'0'),ticket_number:tickets.length+1,status:'new',email_status:'pending',telegram_status:'pending',created_at:new Date().toISOString()};
+        tickets.push(ticket);return reply([ticket],201);
+      }
+      const rows=tickets.filter(t=>(!target.searchParams.has('id')||t.id===target.searchParams.get('id').slice(3))&&(!target.searchParams.has('request_key')||t.request_key===target.searchParams.get('request_key').slice(3)));
+      if(options.method==='PATCH'){for(const row of rows)Object.assign(row,JSON.parse(options.body));}
+      return reply(rows);
+    }
+    if(String(url).includes('api.resend.com'))return reply(emailOk?{id:'email-id'}:{error:'failed'},emailOk?200:502);
+    if(String(url).includes('api.telegram.org'))return reply({ok:telegramOk},telegramOk?200:502);
+    throw new Error('Unexpected request');
   };
-  try {
-    const data = {nome:'Mario',email:'mario@example.test',numero:'+39 123456',motivo:'pezzo',messaggio:'Informazioni sul prodotto <test>'};
-    const json = await fetch(base+'/api/contact',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(data)});
-    assert.equal(json.status,200); assert.deepEqual(await json.json(),{ok:true});
-    assert.equal(calls.at(-1).url,'https://api.telegram.org/bottest-token/sendMessage');
-    const payload = JSON.parse(calls.at(-1).body);
-    assert.equal(payload.chat_id,'test-chat');
-    assert.match(payload.text,/Pezzo personalizzato/);
-    assert.match(payload.text,/Informazioni sul prodotto <test>/);
-    assert.equal(payload.parse_mode,undefined);
-    const {numero, ...withoutPhone} = data;
-    const encoded = await fetch(base+'/api/contact',{method:'POST',headers:{Origin:'https://legacy.example.test'},body:new URLSearchParams(withoutPhone)});
-    assert.equal(encoded.status,200);
-    assert.match(JSON.parse(calls.at(-1).body).text,/Telefono: Non indicato/);
-    telegramOk = false;
-    const failed = await fetch(base+'/api/contact',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(data)});
-    assert.equal(failed.status,502); assert.equal((await failed.json()).ok,false);
-  } finally {
-    globalThis.fetch = originalFetch;
-    if (oldToken === undefined) delete process.env.TELEGRAM_BOT_TOKEN; else process.env.TELEGRAM_BOT_TOKEN = oldToken;
-    if (oldChat === undefined) delete process.env.TELEGRAM_CHAT_ID; else process.env.TELEGRAM_CHAT_ID = oldChat;
-  }
+  const data={nome:'Mario',email:'mario@example.test',motivo:'pezzo',messaggio:'Contenuto <test> con accenti: città',request_key:'11111111-1111-4111-8111-111111111111'};
+  const submit=payload=>fetch(base+'/api/contact',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  try{
+    const first=await submit(data);assert.equal(first.status,200);
+    assert.deepEqual(await first.json(),{ok:true,ticket_id:'DF-000001',email_sent:true});
+    assert.equal(tickets.length,1);assert.equal(tickets[0].phone,'');
+    const mail=calls.find(c=>c.url.endsWith('/emails'));
+    const content=JSON.parse(mail.body);assert.deepEqual(content.to,[data.email]);assert.match(content.subject,/DF-000001/);assert.match(content.text,/Contenuto <test>/);assert.match(content.text,/non una risposta/);
+    assert.equal(mail.headers['Idempotency-Key'],'ticket-receipt/'+tickets[0].id);
+    assert.equal(content.html,undefined);
+    const telegram=JSON.parse(calls.find(c=>c.url.includes('api.telegram.org')).body);assert.match(telegram.text,/DF-000001/);assert.match(telegram.text,/Telefono: Non indicato/);
+    assert.equal((await submit(data)).status,200);assert.equal(tickets.length,1);assert.equal(calls.filter(c=>c.url.endsWith('/emails')).length,1);
+    emailOk=false;telegramOk=false;
+    const second=await submit({...data,request_key:'22222222-2222-4222-8222-222222222222'});assert.equal(second.status,200);assert.deepEqual(await second.json(),{ok:true,ticket_id:'DF-000002',email_sent:false});
+    assert.equal(tickets[1].email_status,'failed');assert.equal(tickets[1].telegram_status,'failed');
+    assert.equal((await fetch(base+'/api/admin/tickets')).status,401);
+    const login=await fetch(base+'/api/admin/login',{method:'POST',headers:{Origin:base},body:JSON.stringify({email:process.env.ADMIN_EMAIL,password:process.env.ADMIN_PASSWORD})});
+    const headers={Origin:base,Cookie:login.headers.get('set-cookie').split(';')[0]};
+    assert.equal((await (await fetch(base+'/api/admin/tickets',{headers})).json()).length,2);
+    const endpoint=base+'/api/admin/tickets/'+tickets[1].id;
+    assert.equal((await fetch(endpoint+'/receipt',{method:'POST',headers:{Origin:base}})).status,401);
+    assert.equal((await fetch(endpoint,{method:'PATCH',headers:{Origin:'https://other.test',Cookie:headers.Cookie},body:JSON.stringify({status:'closed'})})).status,403);
+    assert.equal((await fetch(endpoint,{method:'PATCH',headers,body:JSON.stringify({status:'in_progress'})})).status,200);assert.equal(tickets[1].status,'in_progress');
+    assert.equal((await fetch(endpoint,{method:'PATCH',headers,body:JSON.stringify({status:'bad'})})).status,400);
+    emailOk=true;
+    assert.equal((await fetch(endpoint+'/receipt',{method:'POST',headers})).status,200);assert.equal(tickets[1].email_status,'sent');
+    databaseOk=false;
+    const failed=await submit({...data,request_key:'33333333-3333-4333-8333-333333333333'});assert.equal(failed.status,502);assert.equal(tickets.length,2);
+  }finally{globalThis.fetch=originalFetch;delete process.env.TELEGRAM_BOT_TOKEN;delete process.env.TELEGRAM_CHAT_ID;}
 });
+
 test('categories persist, reject duplicates and validate product assignments behind admin access', async () => {
   assert.equal((await fetch(base+'/api/admin/categories')).status,401);
   assert.equal((await fetch(base+'/api/admin/categories',{method:'POST',headers:{Origin:'https://other.test'},body:'{}'})).status,403);
