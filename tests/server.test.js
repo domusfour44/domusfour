@@ -1,5 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { Readable } from 'node:stream';
 process.env.NODE_ENV = 'test';
 process.env.ADMIN_EMAIL = 'admin@example.test';
 process.env.ADMIN_PASSWORD = 'a-long-test-password-only';
@@ -314,5 +316,82 @@ test('newsletter verifies membership across pages even with an empty assignment 
     await assignNewsletterSegment('test@example.test',segmentId);
     assert.equal(paths.length,4);
     assert.equal(paths.at(-1).searchParams.get('after'),'other-segment');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('individual product pages only expose published catalog products and current data', async () => {
+  const originalFetch = globalThis.fetch;
+  let available = true, databaseOk = true;
+  const product = {id:'san-gennaro-oro',name:'San Gennaro',category:'santi',image:'assets/img/sanGennaroOro.jpeg',images:['https://photos.example.test/side.jpg'],price:19.99,active:true};
+  globalThis.fetch = async (url, options) => {
+    if (String(url).startsWith(base)) return originalFetch(url,options);
+    const query = new URL(url).searchParams;
+    assert.equal(query.get('id'),'eq.san-gennaro-oro');
+    assert.equal(query.get('active'),'eq.true');
+    assert.equal(query.get('limit'),'1');
+    return Response.json(databaseOk ? (available ? [product] : []) : {code:'unavailable'}, {status:databaseOk ? 200 : 503});
+  };
+  try {
+    const endpoint = base+'/api/products/san-gennaro-oro';
+    assert.deepEqual(await (await fetch(endpoint)).json(),product);
+    product.price = 21.50;
+    assert.equal((await (await fetch(endpoint)).json()).price,21.50);
+    available = false;
+    assert.equal((await fetch(endpoint)).status,404);
+    databaseOk = false;
+    assert.equal((await fetch(endpoint)).status,502);
+    assert.equal((await fetch(base+'/api/products/invalid&query')).status,404);
+    assert.equal((await fetch(base+'/prodotto.html?id=san-gennaro-oro')).status,200);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('product galleries validate every photo and count the cover in the eight-photo limit', () => {
+  const product = {id:'photo-test',name:'Foto',category:'santi',image:'assets/img/sanGennaroOro.jpeg',price:12.99};
+  assert.deepEqual(validateProduct({...product,images:[product.image,product.image]}).images,[product.image]);
+  for (const images of [null,'bad',[null],['javascript:alert(1)'],['https://photos.example.test/test.svg'],['https://photos.example.test/'+'a'.repeat(3000)],Array.from({length:8},(_,i)=>`https://photos.example.test/${i}.jpg`)]) {
+    assert.throws(()=>validateProduct({...product,images}),error=>error.status===400);
+  }
+});
+
+test('admin uploads preserve filenames, isolate duplicates, reject invalid files and surface storage failures', async () => {
+  const originalFetch = globalThis.fetch;
+  const photo = await readFile(new URL('../public/assets/img/sanGennaroOro.jpeg',import.meta.url));
+  const uploads = [];
+  let storageOk = true;
+  globalThis.fetch = async (url,options) => {
+    if (String(url).startsWith(base)) return originalFetch(url,options);
+    uploads.push({url:String(url),...options});
+    assert.equal(options.headers.apikey,'test-server-key');
+    assert.equal(options.headers['x-upsert'],'false');
+    assert.equal(options.headers['Content-Type'],'image/jpeg');
+    assert.deepEqual(options.body,photo);
+    return Response.json(storageOk ? {Key:'saved'} : {code:'NoSuchBucket'}, {status:storageOk ? 200 : 404});
+  };
+  try {
+    const login = await fetch(base+'/api/admin/login',{method:'POST',headers:{Origin:base},body:JSON.stringify({email:process.env.ADMIN_EMAIL,password:process.env.ADMIN_PASSWORD})});
+    const Cookie = login.headers.get('set-cookie').split(';')[0];
+    const headers = {Origin:base,Cookie,'Content-Type':'image/jpeg','X-File-Name':encodeURIComponent('San Gennaro (Oro).JPEG')};
+    const upload = (changes={},data=photo) => fetch(base+'/api/admin/images',{method:'POST',headers:{...headers,...changes},body:data});
+    assert.equal((await upload({Cookie:''})).status,401);
+    assert.equal((await upload({Origin:'https://other.test'})).status,403);
+    const first = await upload(); assert.equal(first.status,201);
+    const saved = await first.json();
+    assert.equal(saved.filename,'San Gennaro (Oro).JPEG');
+    assert.equal(decodeURIComponent(new URL(saved.url).pathname.split('/').at(-1)),saved.filename);
+    assert.match(saved.url,/\/storage\/v1\/object\/public\/product-images\/[0-9a-f-]+\/San%20Gennaro/);
+    const next = await (await upload()).json(); assert.notEqual(next.url,saved.url);
+    for (const filename of ['../photo.jpg','folder/photo.jpg','photo\\test.jpg','.hidden.jpg','città.jpg']) assert.equal((await upload({'X-File-Name':encodeURIComponent(filename)})).status,400);
+    assert.equal((await upload({'X-File-Name':'bad%'})).status,400);
+    assert.equal((await upload({'X-File-Name':'test.svg'})).status,415);
+    assert.equal((await upload({'Content-Type':'image/png'})).status,415);
+    assert.equal((await upload({},Buffer.from('<script>not a photo</script>'))).status,415);
+    assert.equal((await upload({},Buffer.alloc(4*1024*1024+1))).status,413);
+    const chunked = await fetch(base+'/api/admin/images', {method:'POST',headers,body:Readable.from([Buffer.alloc(4*1024*1024),Buffer.alloc(1)]),duplex:'half'});
+    assert.equal(chunked.status,413);
+    assert.match((await chunked.json()).error,/4 MB/);
+    assert.equal(uploads.length,2);
+    storageOk = false;
+    const failed = await upload(); assert.equal(failed.status,502);
+    assert.match((await failed.json()).error,/product-images/);
   } finally { globalThis.fetch = originalFetch; }
 });

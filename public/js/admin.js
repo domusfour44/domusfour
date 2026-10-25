@@ -1,6 +1,7 @@
 const $ = s => document.querySelector(s);
 const editor = $('#editor');
 let products = [], categories = [], editing = null;
+let gallery = [], editorBusy = false;
 const escape = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const message = text => { ($('#workspace').hidden ? $('#login-status') : $('#status')).textContent = text; };
 function showAccess() { document.title = 'Accesso amministratore · DomusFour'; $('#access').hidden = false; $('#workspace').hidden = true; $('#logout').hidden = true; $('#tickets').replaceChildren(); }
@@ -16,9 +17,59 @@ async function api(path, method = 'GET', data) {
   return result;
 }
 function reset() {
+  gallery = []; $('#photo-list').replaceChildren(); $('#photo-status').textContent = '';
   editing = null; editor.reset(); editor.elements.id.readOnly = false; $('#editor-title').textContent = 'Nuovo prodotto';
   $('#product-editor').hidden = true; $('#product-layout').classList.remove('is-editing');
 }
+function productPhotos() { return [...new Set([editor.elements.image.value.trim(), ...gallery].filter(Boolean))]; }
+function renderPhotos() {
+  $('#photo-list').innerHTML = productPhotos().map((url, index) => {
+    let name; try { name = decodeURIComponent(url.split('/').at(-1).split('?')[0]); } catch { name = 'Foto prodotto'; }
+    return `<div class="admin-photo"><img src="${escape(url)}" alt="Foto ${index + 1}"><div><span>${escape(name)}</span><button type="button" class="admin-photo-cover" data-cover="${index}" ${url === editor.elements.image.value ? 'disabled' : ''}>${url === editor.elements.image.value ? 'Copertina' : 'Usa come copertina'}</button></div><button type="button" class="btn btn-outline-danger btn-sm" data-remove-photo="${index}" aria-label="Rimuovi foto ${index + 1}">Rimuovi</button></div>`;
+  }).join('');
+}
+function busyEditor(busy) {
+  editorBusy = busy;
+  $('#editor-fields').disabled = busy;
+  for (const id of ['cancel', 'new', 'logout']) $('#' + id).disabled = busy;
+  editor.setAttribute('aria-busy', String(busy));
+}
+editor.elements.image.addEventListener('change', renderPhotos);
+$('#photo-list').addEventListener('click', event => {
+  if (editorBusy) return;
+  const button = event.target.closest('[data-cover],[data-remove-photo]'); if (!button) return;
+  const photos = productPhotos();
+  if (button.hasAttribute('data-cover')) editor.elements.image.value = photos[Number(button.dataset.cover)];
+  else {
+    const removed = photos.splice(Number(button.dataset.removePhoto), 1)[0];
+    if (editor.elements.image.value === removed) editor.elements.image.value = photos[0] || '';
+  }
+  gallery = photos;
+  renderPhotos();
+});
+$('#photo-upload').addEventListener('change', async event => {
+  const files = [...event.target.files]; if (!files.length || editorBusy) return;
+  const status = $('#photo-status');
+  if (productPhotos().length + files.length > 8) { status.textContent = 'Puoi aggiungere al massimo 8 foto. Rimuovine una prima di continuare.'; event.target.value = ''; return; }
+  if (files.some(file => file.size > 4 * 1024 * 1024 || !/\.(jpe?g|png|webp)$/i.test(file.name))) { status.textContent = 'Scegli foto JPG, PNG o WebP, fino a 4 MB ciascuna.'; event.target.value = ''; return; }
+  busyEditor(true);
+  let uploaded = 0;
+  try {
+    for (const file of files) {
+      status.textContent = `Caricamento foto ${uploaded + 1} di ${files.length}…`;
+      const type = /\.png$/i.test(file.name) ? 'image/png' : /\.webp$/i.test(file.name) ? 'image/webp' : 'image/jpeg';
+      const response = await fetch('/api/admin/images', { method: 'POST', headers: { 'Content-Type': type, 'X-File-Name': encodeURIComponent(file.name) }, body: file });
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 401) showAccess();
+      if (!response.ok) throw new Error(result.error || 'Caricamento non riuscito. Riprova.');
+      gallery = [...productPhotos(), result.url];
+      if (!editor.elements.image.value) editor.elements.image.value = result.url;
+      uploaded++; renderPhotos();
+    }
+    status.textContent = `${uploaded === 1 ? 'Foto caricata' : `${uploaded} foto caricate`}. Salva il prodotto per pubblicare.`;
+  } catch (error) { status.textContent = `${uploaded ? `${uploaded} foto caricate. ` : ''}${error.message}`; }
+  finally { event.target.value = ''; busyEditor(false); }
+});
 function openEditor() {
   $('#product-editor').hidden = false; $('#product-layout').classList.add('is-editing');
 }
@@ -54,7 +105,7 @@ function render() {
   const query = $('#search').value.toLowerCase();
   const visible = products.filter(p => (p.name + ' ' + p.id).toLowerCase().includes(query));
   $('#count').textContent = `${visible.length} prodotti · ${products.filter(p => p.active).length} pubblicati`;
-  $('#products').innerHTML = visible.length ? visible.map(p => `<article class="admin-row"><img src="${escape(p.image)}" alt=""><div class="info"><h3 class="h6 mb-1">${escape(p.name)}</h3><span>${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(p.price)} · ${p.active ? 'Pubblicato' : 'Bozza'}${p.featured ? ' · In home' : ''}</span><small class="d-block text-body-secondary">${escape(p.id)}</small></div><div class="actions"><button class="btn btn-outline-primary btn-sm" data-edit="${escape(p.id)}" aria-label="Modifica ${escape(p.name)}">Modifica</button><button class="btn btn-outline-danger btn-sm" data-delete="${escape(p.id)}" aria-label="Elimina ${escape(p.name)}">Elimina</button></div></article>`).join('') : (query ? '<p>Nessun prodotto trovato. Prova un altro nome o codice.</p>' : '<p>Il catalogo è vuoto. Usa «Nuovo prodotto» per aggiungere il primo articolo.</p>');
+  $('#products').innerHTML = visible.length ? visible.map(p => `<article class="admin-row"><img src="${escape(p.image)}" alt=""><div class="info"><h3 class="h6 mb-1">${escape(p.name)}</h3><span>${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(p.price)} · ${p.active ? 'Pubblicato' : 'Bozza'}${p.featured ? ' · In home' : ''}</span><small class="d-block text-body-secondary">${escape(p.id)}</small></div><div class="actions">${p.active ? `<a class="btn btn-outline-primary btn-sm" href="prodotto.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" aria-label="Apri scheda ${escape(p.name)}">Apri scheda</a>` : ''}<button class="btn btn-outline-primary btn-sm" data-edit="${escape(p.id)}" aria-label="Modifica ${escape(p.name)}">Modifica</button><button class="btn btn-outline-danger btn-sm" data-delete="${escape(p.id)}" aria-label="Elimina ${escape(p.name)}">Elimina</button></div></article>`).join('') : (query ? '<p>Nessun prodotto trovato. Prova un altro nome o codice.</p>' : '<p>Il catalogo è vuoto. Usa «Nuovo prodotto» per aggiungere il primo articolo.</p>');
 }
 async function load() {
   const result = await Promise.all([api('products'), api('categories')]);
@@ -136,12 +187,15 @@ $('#cancel').onclick = reset;
 $('#discard').onclick = reset;
 $('#search').oninput = render;
 $('#products').onclick = async event => {
+  if (editorBusy) return;
   const button = event.target.closest('button'); if (!button) return;
   const p = products.find(p => p.id === (button.dataset.edit || button.dataset.delete)); if (!p) return;
   if (button.dataset.edit) {
+    reset();
     editing = p.id;
     openEditor();
     for (const [key, value] of Object.entries(p)) if (editor.elements[key]) { if (editor.elements[key].type === 'checkbox') editor.elements[key].checked = value; else editor.elements[key].value = value; }
+    gallery = [...new Set([p.image, ...(p.images || [])])]; renderPhotos();
     editor.elements.id.readOnly = true; $('#editor-title').textContent = 'Modifica prodotto'; editor.elements.name.focus();
   } else if (confirm(`Eliminare definitivamente “${p.name}”?`)) {
     button.disabled = true;
@@ -149,9 +203,10 @@ $('#products').onclick = async event => {
   }
 };
 editor.addEventListener('submit', async event => {
-  event.preventDefault(); if (!editor.reportValidity()) return;
+  event.preventDefault(); if (editorBusy || !editor.reportValidity()) return;
   const data = Object.fromEntries(new FormData(editor)); data.price = Number(data.price); data.active = editor.elements.active.checked; data.featured = editor.elements.featured.checked;
-  const button = editor.querySelector('[type="submit"]'); button.disabled = true;
-  try { await api('products' + (editing ? '/' + encodeURIComponent(editing) : ''), editing ? 'PUT' : 'POST', data); reset(); await load(); message('Prodotto salvato. Il catalogo è aggiornato.'); } catch (error) { message(error.message); } finally { button.disabled = false; }
+  data.images = productPhotos();
+  busyEditor(true);
+  try { await api('products' + (editing ? '/' + encodeURIComponent(editing) : ''), editing ? 'PUT' : 'POST', data); reset(); await load(); message('Prodotto salvato. Il catalogo è aggiornato.'); } catch (error) { message(error.message); } finally { busyEditor(false); }
 });
 (async () => { try { await api('session'); await load(); } catch (error) { if (error.message !== 'Accedi come amministratore.') message(error.message); } })();

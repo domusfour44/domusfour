@@ -1,3 +1,5 @@
 # Domus Neapolis
 
 Catalogo di statue e oggetti ispirati a Napoli. Frontend HTML/Bootstrap italiano. San Gennaro e D10S con foto reali, acquistabili su Vinted, sono presenti nella home e in Neapolis. Rimossi la pagina Collezione, i sei articoli dimostrativi illustrati in SVG e le categorie Maschere e Portafortuna. Categorie attive: Santi e Calcio. Il carrello non effettua pagamenti. Backend Node unificato per contatti Telegram, catalogo persistente Supabase gestito via admin dedicato e newsletter Resend con conferma email. Autenticazione clienti preparata ma disattivata.
+
+Ogni prodotto pubblicato ha una scheda automatica su `prodotto.html?id=CODICE`, con prezzo dal database, descrizione, dettagli e galleria. Home e Neapolis condividono il catalogo. L'admin carica fino a 8 foto per prodotto in Supabase Storage, sceglie la copertina e conserva il nome originale dentro cartelle distinte. Le foto ammesse sono JPG, PNG e WebP, fino a 4 MB; i nomi non supportati dallo Storage sono rifiutati senza rinomina automatica. Lo script `supabase/006_product_images.sql` abilita gallerie e bucket. Acquisto su link esterno quando presente; altrimenti contatto per informazioni.

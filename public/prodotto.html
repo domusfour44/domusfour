@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="it" data-bs-theme="light">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
+  <title>Prodotto · DomusFour</title>
+  <meta name="description" content="Foto, dettagli e prezzo dei prodotti DomusFour.">
+  <link href="vendor/fonts/fonts.css" rel="stylesheet"><link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet"><link href="css/custom.css" rel="stylesheet"><link href="css/product.css" rel="stylesheet">
+  <script src="js/theme.js"></script>
+</head>
+<body class="product-page">
+  <a class="product-skip" href="#product-main">Vai al prodotto</a>
+  <nav class="navbar navbar-expand-md site-nav" aria-label="Navigazione principale">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-3 py-1" href="index.html" aria-label="DomusFour, torna alla home">
+        <img src="assets/img/skyline-light.webp" class="logo-light" width="76" height="32" alt=""><img src="assets/img/skyline-dark.webp" class="logo-dark" width="76" height="32" alt="">
+        <span class="wordmark">DOMUS<small>Four</small></span>
+      </a>
+      <div class="d-flex align-items-center gap-2 order-md-last">
+        <button class="icon-btn" id="theme-toggle" type="button" aria-label="Cambia tema chiaro o scuro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg></button>
+        <button class="navbar-toggler ms-1" type="button" data-bs-toggle="collapse" data-bs-target="#menu" aria-controls="menu" aria-expanded="false" aria-label="Apri il menu"><span class="navbar-toggler-icon"></span></button>
+      </div>
+      <div class="collapse navbar-collapse ms-md-4" id="menu"><ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="index.html">Home</a></li><li class="nav-item"><a class="nav-link" href="napoli.html">Neapolis</a></li><li class="nav-item"><a class="nav-link" href="contatti.html">Contatti</a></li></ul></div>
+    </div>
+  </nav>
+  <main id="product-main" class="container product-main">
+    <nav class="product-breadcrumb" aria-label="Percorso"><a href="index.html">Home</a><span aria-hidden="true">/</span><a href="napoli.html#prodotti">Prodotti</a><span id="breadcrumb-separator" aria-hidden="true" hidden>/</span><span id="breadcrumb-name" aria-current="page"></span></nav>
+    <section id="product-state" class="product-state" aria-live="polite">
+      <h1 id="state-title">Caricamento prodotto…</h1><p id="state-description">Stiamo recuperando foto, dettagli e prezzo aggiornato.</p>
+      <button id="product-retry" type="button" class="btn btn-primary" hidden>Riprova</button><a id="product-back" class="btn btn-outline-primary" href="napoli.html#prodotti" hidden>Torna ai prodotti</a>
+    </section>
+    <article id="product-detail" class="product-detail" hidden>
+      <div class="product-gallery" aria-label="Foto del prodotto">
+        <figure class="product-photo"><img id="product-image" alt="" fetchpriority="high"><figcaption id="photo-unavailable" hidden>Foto non disponibile</figcaption></figure>
+        <div id="product-thumbnails" class="product-thumbnails" role="group" aria-label="Scegli una foto"></div>
+        <p id="gallery-status" class="visually-hidden" role="status"></p>
+      </div>
+      <div class="product-information">
+        <h1 id="product-name"></h1>
+        <p class="product-classification"><span id="product-category"></span><span id="product-badge" class="badge badge-gold" hidden></span></p>
+        <p id="product-price" class="product-price"></p>
+        <p id="product-description" class="product-description"></p>
+        <section id="product-specs" class="product-specs" hidden><h2>Dimensioni e materiali</h2><p id="product-details"></p></section>
+        <div class="product-purchase"><a id="product-buy" class="btn btn-primary btn-lg" rel="noopener" hidden>Acquista</a><a id="product-contact" class="product-contact" href="contatti.html">Hai una domanda? Contattaci</a><p id="purchase-note" class="small text-body-secondary" hidden>L’acquisto si completa sul sito del venditore.</p></div>
+        <a class="product-return" href="napoli.html#prodotti">Esplora tutti i prodotti</a>
+      </div>
+    </article>
+    <noscript><p>Attiva JavaScript per visualizzare foto e prezzo aggiornato. Puoi <a href="contatti.html">contattarci</a> per informazioni sul prodotto.</p></noscript>
+  </main>
+  <footer class="band-black site-footer py-4" data-bs-theme="dark"><div class="container product-footer"><span>DomusFour</span><nav aria-label="Informazioni"><a href="contatti.html">Contatti</a><a href="privacy.html">Privacy</a><a href="cookie.html">Cookie</a></nav></div></footer>
+  <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script><script src="js/product.js"></script>
+</body>
+</html>

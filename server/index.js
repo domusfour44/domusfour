@@ -9,6 +9,7 @@ import { isCatalogProduct } from './products.js';
 import { validTicketId, sendTicketReceipt } from './tickets.js';
 import { newsletterConfirmationEmail } from './emails.js';
 import { newsletterSegmentId, assignNewsletterSegment } from './newsletter.js';
+import { uploadProductImage } from './images.js';
 
 const root = fileURLToPath(new URL('../public/', import.meta.url)).replace(/[\\/]$/, '');
 const site = () => new URL(process.env.SITE_URL || 'http://localhost:3000');
@@ -57,6 +58,13 @@ export const server = http.createServer(async (req, res) => {
     if (path.startsWith('/api/')) {
       if (!['GET','HEAD'].includes(req.method) && req.headers.origin !== site().origin) fail(403, 'Origine non consentita.');
       if (path === '/api/products' && req.method === 'GET') return json((await database('products?active=eq.true&select=*,category_info:categories(name)&order=created_at.asc')).filter(isCatalogProduct));
+      const productMatch = /^\/api\/products\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
+      if (productMatch && req.method === 'GET') {
+        const products = await database(`products?id=eq.${productMatch[1]}&active=eq.true&select=*,category_info:categories(name)&limit=1`);
+        const product = products.find(isCatalogProduct);
+        if (!product) fail(404, 'Questo prodotto non è più disponibile.');
+        return json(product);
+      }
       if (path === '/api/admin/login' && req.method === 'POST') {
         limit(req, path, 10);
         const data = await body(req);
@@ -68,6 +76,7 @@ export const server = http.createServer(async (req, res) => {
       }
       if (path.startsWith('/api/admin/')) {
         admin(req);
+        if (path === '/api/admin/images' && req.method === 'POST') { limit(req, path, 60); return json(await uploadProductImage(req), 201); }
         if (path === '/api/admin/session' && req.method === 'GET') return json({ ok: true });
         if (path === '/api/admin/logout' && req.method === 'POST') { res.setHeader('Set-Cookie', cookie('')); return json({ ok: true }); }
         if (path === '/api/admin/tickets' && req.method === 'GET') {
