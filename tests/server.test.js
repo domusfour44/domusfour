@@ -7,9 +7,19 @@ process.env.SESSION_SECRET = 'test-secret-with-more-than-32-characters';
 process.env.ALLOWED_ORIGINS = 'https://legacy.example.test';
 const { server } = await import('../server/index.js');
 const { validateProduct } = await import('../server/services.js');
+const { newsletterSegmentId } = await import('../server/newsletter.js');
 let base;
 before(async () => { await new Promise(resolve => server.listen(0,'127.0.0.1',resolve)); base = `http://127.0.0.1:${server.address().port}`; process.env.SITE_URL=base; });
 after(() => new Promise(resolve => server.close(resolve)));
+test('newsletter refuses missing or malformed segment configuration', () => {
+  const previous = process.env.RESEND_SEGMENT_ID;
+  try {
+    delete process.env.RESEND_SEGMENT_ID;
+    assert.throws(() => newsletterSegmentId(), error => error.status === 503);
+    process.env.RESEND_SEGMENT_ID = 'Newsletter DomusFour';
+    assert.throws(() => newsletterSegmentId(), error => error.status === 503);
+  } finally { if (previous === undefined) delete process.env.RESEND_SEGMENT_ID; else process.env.RESEND_SEGMENT_ID = previous; }
+});
 test('admin routes require session, reject cross-origin requests, accept login and logout', async () => {
   assert.equal((await fetch(base+'/api/admin/products')).status,401);
   assert.equal((await fetch(base+'/api/admin/login',{method:'POST',headers:{Origin:'https://other.test'}})).status,403);
@@ -48,6 +58,9 @@ test('catalog and CRUD forward validated data to Supabase; newsletter waits for 
   globalThis.fetch = async (url, options = {}) => {
     if (String(url).startsWith(base)) return originalFetch(url, options);
     calls.push({ url: String(url), ...options });
+    if (String(url).includes('api.resend.com/contacts/')) {
+      return new Response(JSON.stringify(options.method === 'GET' ? {id:'test',unsubscribed:false} : {id:process.env.RESEND_SEGMENT_ID}),{status:200,headers:{'Content-Type':'application/json'}});
+    }
     if (String(url).includes('/newsletter_consents')) {
       if (options.method === 'POST') consentRecords.push({ ...JSON.parse(options.body), synced: false });
       if (options.method === 'PATCH') consentRecords[0].synced = true;
@@ -91,7 +104,10 @@ test('catalog and CRUD forward validated data to Supabase; newsletter waits for 
     assert.equal(confirmation.status,200);
     assert.equal(calls.filter(c => /\/contacts$/.test(c.url)).length,1);
     const contact = JSON.parse(calls.find(c => /\/contacts$/.test(c.url)).body);
-    assert.deepEqual(contact.segments,[{id:process.env.RESEND_SEGMENT_ID}]);
+    assert.equal(contact.segments,undefined);
+    const assignment = calls.find(c => c.url.includes('/segments/'));
+    assert.equal(assignment.url,`https://api.resend.com/contacts/test%40example.test/segments/${process.env.RESEND_SEGMENT_ID}`);
+    assert.equal(assignment.method,'POST');
     assert.equal(consentRecords[0].email,'test@example.test');
     assert.equal(consentRecords[0].privacy_version,'2026-10-25');
     assert.equal(consentRecords[0].synced,true);
@@ -226,7 +242,7 @@ test('newsletter segment failure leaves the opt-in retryable without marking it 
   const originalFetch = globalThis.fetch;
   const oldSegment = process.env.RESEND_SEGMENT_ID;
   process.env.RESEND_SEGMENT_ID = '55555555-5555-4555-8555-555555555555';
-  let receipt, synced = false, available = false, contactCalls = 0;
+  let receipt, synced = false, available = false, contactCalls = 0, segmentCalls = 0, unsubscribed = false;
   const records = [];
   globalThis.fetch = async (url, options = {}) => {
     if (String(url).startsWith(base)) return originalFetch(url,options);
@@ -239,9 +255,15 @@ test('newsletter segment failure leaves the opt-in retryable without marking it 
     }
     if (String(url).endsWith('/contacts')) {
       contactCalls++;
-      assert.deepEqual(JSON.parse(options.body).segments,[{id:process.env.RESEND_SEGMENT_ID}]);
-      return available ? reply({id:'contact'}) : reply({error:'Segment unavailable'},502);
+      return reply({id:'contact'});
     }
+    if (String(url).includes('/segments/')) {
+      segmentCalls++;
+      assert.equal(options.method,'POST');
+      assert.equal(String(url).endsWith('/segments/'+process.env.RESEND_SEGMENT_ID),true);
+      return available ? reply({id:process.env.RESEND_SEGMENT_ID}) : reply({name:'not_found'},404);
+    }
+    if (String(url).includes('/contacts/') && options.method === 'GET') return reply({id:'contact',unsubscribed});
     throw new Error('Unexpected request');
   };
   try {
@@ -256,6 +278,11 @@ test('newsletter segment failure leaves the opt-in retryable without marking it 
     assert.equal(synced,true);
     assert.equal(records.length,1);
     assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,200);
+    assert.equal(contactCalls,2);
+    assert.equal(segmentCalls,3);
+    unsubscribed=true;
+    assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,400);
+    assert.equal(segmentCalls,3);
     assert.equal(contactCalls,2);
   } finally {
     globalThis.fetch = originalFetch;

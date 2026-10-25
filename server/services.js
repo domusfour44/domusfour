@@ -7,7 +7,8 @@ export async function remote(url, options) {
     if (data?.code === '23505') throw Object.assign(new Error('Nome o codice già presente. Scegli un nome diverso.'), { status: 409 });
     if (data?.code === '23503') throw Object.assign(new Error('Categoria non disponibile. Aggiorna la pagina e riprova.'), { status: 400 });
     if (['42P01', 'PGRST205', 'PGRST200'].includes(data?.code)) throw Object.assign(new Error('Database da aggiornare: esegui gli script SQL indicati nel README.'), { status: 503 });
-    throw Object.assign(new Error('Servizio temporaneamente non disponibile.'), { status: 502 });
+    const code = String(data?.name || data?.code || 'unknown');
+    throw Object.assign(new Error('Servizio temporaneamente non disponibile.'), { status: 502, upstreamStatus: response.status, upstreamCode: /^[a-zA-Z0-9_-]{1,64}$/.test(code) ? code : 'unknown' });
   }
   return data;
 }
@@ -16,9 +17,9 @@ export function database(path, options = {}) {
   if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) throw Object.assign(new Error('Database da configurare.'), { status: 503 });
   return remote(`${SUPABASE_URL}/rest/v1/${path}`, { ...options, headers: { apikey: SUPABASE_SECRET_KEY, Authorization: `Bearer ${SUPABASE_SECRET_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation', ...options.headers } });
 }
-export function resend(path, body, headers = {}) {
+export function resend(path, body, headers = {}, method = 'POST') {
   if (!process.env.RESEND_API_KEY) throw Object.assign(new Error('Newsletter da configurare.'), { status: 503 });
-  return remote(`https://api.resend.com/${path}`, { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  return remote(`https://api.resend.com/${path}`, { method, headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
 }
 export function validateProduct(data) {
   const fields = ['id','name','category','description','details','image','badge','purchase_url'];

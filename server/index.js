@@ -8,6 +8,7 @@ import { handleContact } from './contact.js';
 import { isCatalogProduct } from './products.js';
 import { validTicketId, sendTicketReceipt } from './tickets.js';
 import { newsletterConfirmationEmail } from './emails.js';
+import { newsletterSegmentId, assignNewsletterSegment } from './newsletter.js';
 
 const root = fileURLToPath(new URL('../public/', import.meta.url)).replace(/[\\/]$/, '');
 const site = () => new URL(process.env.SITE_URL || 'http://localhost:3000');
@@ -109,6 +110,7 @@ export const server = http.createServer(async (req, res) => {
         limit(req, path, 5);
         const data = await body(req);
         if (data.consent !== true || typeof data.email !== 'string' || data.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) fail(400, 'Inserisci una email valida e accetta l’informativa.');
+        newsletterSegmentId();
         const token = sign({ type: 'newsletter', email: data.email.trim().toLowerCase(), exp: Date.now() + 86400000, consent_at: new Date().toISOString(), privacy_version: '2026-10-25' });
         const link = new URL('/newsletter-confirm.html', site()); link.searchParams.set('token', token);
         await resend('emails', { from: process.env.RESEND_FROM, to: [data.email.trim()], reply_to: process.env.CONTACT_REPLY_TO || 'domusfour44@domusfour.it', ...newsletterConfirmationEmail(link.href) });
@@ -119,14 +121,16 @@ export const server = http.createServer(async (req, res) => {
         const token = (await body(req)).token;
         const data = verify(token, 'newsletter');
         if (!data || data.privacy_version !== '2026-10-25') fail(400, 'Link non valido o scaduto. Iscriviti nuovamente dalla home.');
-        const segmentId = process.env.RESEND_SEGMENT_ID?.trim();
-        if (segmentId && !validTicketId(segmentId)) fail(503, 'Configurazione newsletter non valida.');
+        const segmentId = newsletterSegmentId();
         const confirmationId = createHash('sha256').update(token).digest('hex');
         const recordPath = `newsletter_consents?confirmation_id=eq.${confirmationId}`;
         const existing = await database(recordPath);
-        if (existing[0]?.synced) return json({ ok: true, message: 'Questa iscrizione è già stata confermata.' });
+        if (existing[0]?.synced) {
+          await assignNewsletterSegment(data.email, segmentId, true);
+          return json({ ok: true, message: 'Questa iscrizione è già stata confermata.' });
+        }
         if (!existing.length) await database('newsletter_consents', { method: 'POST', body: JSON.stringify({ confirmation_id: confirmationId, email: data.email, requested_at: data.consent_at, privacy_version: data.privacy_version }) });
-        await resend('contacts', { email: data.email, unsubscribed: false, ...(segmentId ? { segments: [{ id: segmentId }] } : {}) });
+        await assignNewsletterSegment(data.email, segmentId);
         await database(recordPath, { method: 'PATCH', body: JSON.stringify({ synced: true }) });
         return json({ ok: true, message: 'Iscrizione confermata. Grazie!' });
       }
