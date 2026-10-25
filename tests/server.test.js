@@ -430,7 +430,7 @@ test('owner manages staff accounts; passwords, roles and immediate session revoc
   };
   const noSecrets = value => assert.doesNotMatch(JSON.stringify(value),/password_hash|password_salt|session_version|initial-test-password/);
   const initial = 'initial-test-password-only';
-  const personal = 'my-personal-password-only';
+  const personal = 'abc123';
   try {
     const owner = await login(process.env.ADMIN_EMAIL,process.env.ADMIN_PASSWORD);
     assert.equal(owner.user.owner,true);
@@ -452,6 +452,7 @@ test('owner manages staff accounts; passwords, roles and immediate session revoc
     assert.equal((await request('products','GET',undefined,first.cookie)).status,403);
     assert.equal((await request('users','POST',{name:'Escalation',email:'attack@example.test',password:initial},first.cookie)).status,403);
     assert.equal((await request('password','POST',{current_password:'wrong',password:personal},first.cookie)).status,400);
+    assert.equal((await request('password','POST',{current_password:initial,password:'abc12'},first.cookie)).status,400);
     const changed = await request('password','POST',{current_password:initial,password:personal},first.cookie);
     assert.equal(changed.status,200); noSecrets(await changed.json());
     const memberCookie = changed.headers.get('set-cookie').split(';')[0];

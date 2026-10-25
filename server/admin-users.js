@@ -17,12 +17,12 @@ const owner = () => ({ id: 'owner', name: 'Proprietario', email: ownerEmail(), o
 const publicUser = user => ({ id: user.id, name: user.name, email: user.email, owner: user.owner === true, must_change_password: user.must_change_password });
 export const sessionUser = publicUser;
 
-export function validateAdminPassword(password) {
-  if (typeof password !== 'string' || password.length < 16 || password.length > 256 || !password.trim()) deny(400, 'Usa una password da 16 a 256 caratteri.');
+export function validateAdminPassword(password, minimum = 16) {
+  if (typeof password !== 'string' || password.length < minimum || password.length > 256 || !password.trim()) deny(400, `Usa una password da ${minimum} a 256 caratteri.`);
   return password;
 }
-async function passwordFields(password) {
-  validateAdminPassword(password);
+async function passwordFields(password, minimum = 16) {
+  validateAdminPassword(password, minimum);
   const salt = randomBytes(16).toString('hex');
   const hash = (await derive(password, salt, 64, options)).toString('hex');
   return { password_hash: hash, password_salt: salt, session_version: randomUUID() };
@@ -100,14 +100,14 @@ export async function updateAdminUser(id, data, resetPassword = false) {
 }
 export async function changeAdminPassword(user, data) {
   if (user.owner) deny(400, 'La password del proprietario si modifica nelle variabili ADMIN_PASSWORD su Render.');
-  validateAdminPassword(data?.password);
+  validateAdminPassword(data?.password, 6);
   if (typeof data?.current_password !== 'string' || data.current_password.length > 256) deny(400, 'Inserisci la password attuale.');
   const rows = await database(`admin_users?id=eq.${user.id}&limit=1`);
   const stored = rows[0];
   if (!stored?.active || stored.session_version !== user.session_version) deny(401, 'Accedi nuovamente.');
   if (!await passwordMatches(data.current_password, stored)) deny(400, 'La password attuale non è corretta.');
   if (data.current_password === data.password) deny(400, 'Scegli una password diversa da quella attuale.');
-  const fields = { ...await passwordFields(data.password), must_change_password: false };
+  const fields = { ...await passwordFields(data.password, 6), must_change_password: false };
   // Compare the version as well: a concurrent revocation/reset must win over this request.
   const updated = await database(`admin_users?id=eq.${user.id}&session_version=eq.${user.session_version}&active=eq.true&select=${safeColumns},session_version`, { method: 'PATCH', body: JSON.stringify(fields) });
   if (!updated.length) deny(401, 'Accesso modificato. Accedi nuovamente.');

@@ -119,7 +119,7 @@ async function load() {
     link.hidden = currentUser.must_change_password ? link.dataset.view !== 'password'
       : link.dataset.view === 'users' ? !currentUser.owner : link.dataset.view === 'password' ? currentUser.owner : false;
   });
-  $('#password-help').textContent = currentUser.must_change_password ? 'Prima di continuare devi sostituire la password iniziale con una personale, di almeno 16 caratteri.' : 'Usa una password diversa da quella attuale, di almeno 16 caratteri.';
+  $('#password-help').textContent = currentUser.must_change_password ? 'Prima di continuare devi sostituire la password iniziale con una personale, di almeno 6 caratteri.' : 'Usa una password diversa da quella attuale, di almeno 6 caratteri.';
   if (currentUser.must_change_password) {
     $('#access').hidden = true; $('#workspace').hidden = false; $('#logout').hidden = false;
     setView('password'); return;
