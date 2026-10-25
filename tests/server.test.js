@@ -7,7 +7,7 @@ process.env.SESSION_SECRET = 'test-secret-with-more-than-32-characters';
 process.env.ALLOWED_ORIGINS = 'https://legacy.example.test';
 const { server } = await import('../server/index.js');
 const { validateProduct } = await import('../server/services.js');
-const { newsletterSegmentId } = await import('../server/newsletter.js');
+const { newsletterSegmentId, assignNewsletterSegment } = await import('../server/newsletter.js');
 let base;
 before(async () => { await new Promise(resolve => server.listen(0,'127.0.0.1',resolve)); base = `http://127.0.0.1:${server.address().port}`; process.env.SITE_URL=base; });
 after(() => new Promise(resolve => server.close(resolve)));
@@ -59,7 +59,9 @@ test('catalog and CRUD forward validated data to Supabase; newsletter waits for 
     if (String(url).startsWith(base)) return originalFetch(url, options);
     calls.push({ url: String(url), ...options });
     if (String(url).includes('api.resend.com/contacts/')) {
-      return new Response(JSON.stringify(options.method === 'GET' ? {id:'test',unsubscribed:false} : {id:process.env.RESEND_SEGMENT_ID}),{status:200,headers:{'Content-Type':'application/json'}});
+      const data = String(url).includes('/segments?') ? {data:[{id:process.env.RESEND_SEGMENT_ID}],has_more:false}
+        : options.method === 'GET' ? {id:'test',unsubscribed:false} : {success:true};
+      return new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});
     }
     if (String(url).includes('/newsletter_consents')) {
       if (options.method === 'POST') consentRecords.push({ ...JSON.parse(options.body), synced: false });
@@ -242,7 +244,7 @@ test('newsletter segment failure leaves the opt-in retryable without marking it 
   const originalFetch = globalThis.fetch;
   const oldSegment = process.env.RESEND_SEGMENT_ID;
   process.env.RESEND_SEGMENT_ID = '55555555-5555-4555-8555-555555555555';
-  let receipt, synced = false, available = false, contactCalls = 0, segmentCalls = 0, unsubscribed = false;
+  let receipt, synced = false, available = false, membership = false, contactCalls = 0, segmentCalls = 0, unsubscribed = false;
   const records = [];
   globalThis.fetch = async (url, options = {}) => {
     if (String(url).startsWith(base)) return originalFetch(url,options);
@@ -261,8 +263,9 @@ test('newsletter segment failure leaves the opt-in retryable without marking it 
       segmentCalls++;
       assert.equal(options.method,'POST');
       assert.equal(String(url).endsWith('/segments/'+process.env.RESEND_SEGMENT_ID),true);
-      return available ? reply({id:process.env.RESEND_SEGMENT_ID}) : reply({name:'not_found'},404);
+      return available ? reply({success:true}) : reply({name:'not_found'},404);
     }
+    if (String(url).includes('/segments?')) return reply({data:membership ? [{id:process.env.RESEND_SEGMENT_ID}] : [],has_more:false});
     if (String(url).includes('/contacts/') && options.method === 'GET') return reply({id:'contact',unsubscribed});
     throw new Error('Unexpected request');
   };
@@ -274,18 +277,42 @@ test('newsletter segment failure leaves the opt-in retryable without marking it 
     assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,502);
     assert.equal(synced,false);
     available = true;
+    assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,502);
+    assert.equal(synced,false);
+    membership = true;
     assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,200);
     assert.equal(synced,true);
     assert.equal(records.length,1);
     assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,200);
-    assert.equal(contactCalls,2);
-    assert.equal(segmentCalls,3);
+    assert.equal(contactCalls,3);
+    assert.equal(segmentCalls,4);
     unsubscribed=true;
     assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,400);
-    assert.equal(segmentCalls,3);
-    assert.equal(contactCalls,2);
+    assert.equal(segmentCalls,4);
+    assert.equal(contactCalls,3);
   } finally {
     globalThis.fetch = originalFetch;
     if (oldSegment === undefined) delete process.env.RESEND_SEGMENT_ID; else process.env.RESEND_SEGMENT_ID = oldSegment;
   }
+});
+
+test('newsletter verifies membership across pages even with an empty assignment response', async () => {
+  const originalFetch = globalThis.fetch;
+  const segmentId = '55555555-5555-4555-8555-555555555555';
+  const paths = [];
+  globalThis.fetch = async (url, options) => {
+    const path = new URL(url);
+    paths.push(path);
+    if (options.method === 'POST') return new Response(null,{status:204});
+    assert.equal(options.method,'GET');
+    assert.equal(path.searchParams.get('limit'),'100');
+    return Response.json(path.searchParams.has('after')
+      ? {data:[{id:segmentId}],has_more:false}
+      : {data:[{id:'other-segment'}],has_more:true});
+  };
+  try {
+    await assignNewsletterSegment('test@example.test',segmentId);
+    assert.equal(paths.length,4);
+    assert.equal(paths.at(-1).searchParams.get('after'),'other-segment');
+  } finally { globalThis.fetch = originalFetch; }
 });
