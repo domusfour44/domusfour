@@ -7,6 +7,7 @@ import { database, resend, prepareProduct, validateCategory } from './services.j
 import { handleContact } from './contact.js';
 import { isCatalogProduct } from './products.js';
 import { validTicketId, sendTicketReceipt } from './tickets.js';
+import { newsletterConfirmationEmail } from './emails.js';
 
 const root = fileURLToPath(new URL('../public/', import.meta.url)).replace(/[\\/]$/, '');
 const site = () => new URL(process.env.SITE_URL || 'http://localhost:3000');
@@ -110,7 +111,7 @@ export const server = http.createServer(async (req, res) => {
         if (data.consent !== true || typeof data.email !== 'string' || data.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) fail(400, 'Inserisci una email valida e accetta l’informativa.');
         const token = sign({ type: 'newsletter', email: data.email.trim().toLowerCase(), exp: Date.now() + 86400000, consent_at: new Date().toISOString(), privacy_version: '2026-10-25' });
         const link = new URL('/newsletter-confirm.html', site()); link.searchParams.set('token', token);
-        await resend('emails', { from: process.env.RESEND_FROM, to: [data.email.trim()], subject: 'Conferma la tua iscrizione a Domus Neapolis', text: `Conferma la tua iscrizione alla newsletter aprendo questo link (valido 24 ore): ${link.href}\nSe non hai richiesto questa email, ignorala.` });
+        await resend('emails', { from: process.env.RESEND_FROM, to: [data.email.trim()], reply_to: process.env.CONTACT_REPLY_TO || 'domusfour44@domusfour.it', ...newsletterConfirmationEmail(link.href) });
         return json({ ok: true, message: 'Controlla la tua email e conferma l’iscrizione entro 24 ore.' });
       }
       if (path === '/api/newsletter/confirm' && req.method === 'POST') {

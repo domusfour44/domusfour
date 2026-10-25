@@ -79,6 +79,10 @@ test('catalog and CRUD forward validated data to Supabase; newsletter waits for 
     assert.equal(calls.length,start+1);
     assert.match(calls.at(-1).url,/\/emails$/);
     const email=JSON.parse(calls.at(-1).body);
+    assert.equal(email.subject,'Conferma la tua iscrizione · DomusFour');
+    assert.match(email.html,/Conferma iscrizione/);
+    assert.match(email.html,/#fbf9f4/);
+    assert.doesNotMatch(email.html,/<script|<img|fonts\.googleapis/i);
     const link=/https?:\/\/\S+/.exec(email.text)[0];
     const token=new URL(link).searchParams.get('token');
     const confirmation=await fetch(base+'/api/newsletter/confirm',{method:'POST',headers:{Origin:base},body:JSON.stringify({token})});
