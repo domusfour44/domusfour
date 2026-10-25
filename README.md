@@ -10,6 +10,16 @@ Sito HTML con server Node.js 22+ senza dipendenze. Avvio: `npm start`. Verifica:
 4. Imposta su Render `SITE_URL=https://domusfour.it` e usa HTTPS in produzione. Il dominio attuale è ospitato su Vercel: le API devono passare dal proxy descritto qui sotto. In locale usa `SITE_URL=http://localhost:3000`.
 5. Su Render usa questo repository completo per il Web Service Node: Root Directory vuota (radice del repository), Build Command `npm install`, Start Command `npm start`, Health Check Path `/health`. Se il servizio era collegato al vecchio repository backend, collega questo repository e rimuovi l'eventuale Root Directory `domus-backend`. Il servizio deve includere sia `server/` sia `public/`.
 
+## Accessi dei collaboratori
+
+Prima del deploy esegui `supabase/007_admin_users.sql` nel **SQL Editor di Supabase**, poi fai push e attendi i deploy di Render e Vercel. Non servono nuove variabili: `ADMIN_EMAIL` e `ADMIN_PASSWORD` restano le credenziali del **proprietario**, l'unico che può gestire gli accessi. Dopo questo aggiornamento accedi nuovamente al pannello: le vecchie sessioni non vengono riutilizzate.
+
+In **Admin → Utenti** inserisci nome, email e password iniziale (16–256 caratteri), poi premi **Crea accesso**. Comunica personalmente le credenziali al collaboratore: non viene inviata un'email automatica. Il collaboratore accede dallo stesso `/admin.html`; prima di vedere prodotti, categorie e ticket deve impostare una password personale diversa da quella iniziale. In seguito può cambiarla dalla sezione **Password**.
+
+Il proprietario può disattivare o riattivare un accesso e reimpostare la password iniziale. Disattivazione, riattivazione e reset invalidano le sessioni precedenti: una sessione revocata non torna valida dopo la riattivazione. Il reset richiede un nuovo cambio password al prossimo accesso e non riattiva un account disattivato. L'accesso principale non può essere disattivato da questa pagina; la sua password si cambia su Render tramite `ADMIN_PASSWORD`. Cambiare `SESSION_SECRET` revoca tutte le sessioni.
+
+Le password dei collaboratori vengono conservate esclusivamente come hash con salt casuale mediante [scrypt di Node.js](https://nodejs.org/api/crypto.html#cryptoscryptpassword-salt-keylen-options-callback), senza essere restituite dalle API. La tabella ha RLS attiva e nessun accesso anonimo. Il server verifica stato e versione della sessione a ogni richiesta autenticata; se il database non risponde, gli accessi dei collaboratori restano bloccati. Questa funzione è separata dalla futura registrazione dei clienti, che rimane disattivata.
+
 ## Dominio Vercel e API Render
 
 Il frontend pubblico è `https://domusfour.it`, mentre il backend è `https://domusfour.onrender.com`. I file `vercel.json` inoltrano `/api/*` e `/health` a Render: il browser continua a usare il dominio del sito, anche per il cookie HttpOnly dell'admin. Questo è un proxy, non un redirect del browser. Non servono chiamate cross-origin dal frontend né cookie di terze parti.

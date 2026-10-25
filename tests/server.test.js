@@ -10,6 +10,7 @@ process.env.ALLOWED_ORIGINS = 'https://legacy.example.test';
 const { server } = await import('../server/index.js');
 const { validateProduct } = await import('../server/services.js');
 const { newsletterSegmentId, assignNewsletterSegment } = await import('../server/newsletter.js');
+const { authenticateAdmin } = await import('../server/admin-users.js');
 let base;
 before(async () => { await new Promise(resolve => server.listen(0,'127.0.0.1',resolve)); base = `http://127.0.0.1:${server.address().port}`; process.env.SITE_URL=base; });
 after(() => new Promise(resolve => server.close(resolve)));
@@ -393,5 +394,98 @@ test('admin uploads preserve filenames, isolate duplicates, reject invalid files
     storageOk = false;
     const failed = await upload(); assert.equal(failed.status,502);
     assert.match((await failed.json()).error,/product-images/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('owner manages staff accounts; passwords, roles and immediate session revocation are enforced', async () => {
+  const originalFetch = globalThis.fetch;
+  const users = [];
+  let databaseOk = true, revokeDuringChange = false;
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).startsWith(base)) return originalFetch(url, options);
+    const target = new URL(url);
+    if (!target.pathname.endsWith('/admin_users')) return Response.json([]);
+    if (!databaseOk) return Response.json({code:'42P01'},{status:404});
+    const query = target.searchParams;
+    if (revokeDuringChange && options.method === 'PATCH' && query.has('session_version')) {
+      users[0].active = false; users[0].session_version = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    }
+    let rows = users.filter(user => ['id','email','session_version','active'].every(key => !query.has(key) || String(user[key]) === query.get(key).slice(3)));
+    if (options.method === 'POST') {
+      const data = JSON.parse(options.body);
+      if (users.some(user => user.email === data.email)) return Response.json({code:'23505'},{status:409});
+      rows = [{id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',active:true,must_change_password:true,created_at:new Date().toISOString(),...data}];
+      users.push(...rows);
+    }
+    if (options.method === 'PATCH') rows.forEach(user => Object.assign(user,JSON.parse(options.body)));
+    const select = query.get('select')?.split(',');
+    return Response.json(rows.map(user => select ? Object.fromEntries(select.map(key => [key,user[key]])) : {...user}));
+  };
+  const request = (path,method='GET',data,session) => fetch(base+'/api/admin/'+path,{method,headers:{Origin:base,...(session?{Cookie:session}:{})},body:data===undefined?undefined:JSON.stringify(data)});
+  const login = async (email,password) => {
+    const response = await request('login','POST',{email,password});
+    assert.equal(response.status,200);
+    const payload = await response.json();
+    return {cookie:response.headers.get('set-cookie').split(';')[0],...payload};
+  };
+  const noSecrets = value => assert.doesNotMatch(JSON.stringify(value),/password_hash|password_salt|session_version|initial-test-password/);
+  const initial = 'initial-test-password-only';
+  const personal = 'my-personal-password-only';
+  try {
+    const owner = await login(process.env.ADMIN_EMAIL,process.env.ADMIN_PASSWORD);
+    assert.equal(owner.user.owner,true);
+    assert.equal((await request('users')).status,401);
+    const created = await request('users','POST',{name:'Collaboratore',email:' Staff@Example.Test ',password:initial,owner:true},owner.cookie);
+    assert.equal(created.status,201);
+    const account = await created.json(); noSecrets(account);
+    assert.equal(account.owner,false); assert.equal(account.email,'staff@example.test');
+    assert.equal(users[0].password_hash.length,128); assert.equal(users[0].password_salt.length,32);
+    assert.equal(users[0].password_hash.includes(initial),false);
+    assert.equal((await request('users','POST',{name:'Again',email:account.email,password:initial},owner.cookie)).status,409);
+    assert.equal((await request('users','POST',{name:'Owner',email:process.env.ADMIN_EMAIL,password:initial},owner.cookie)).status,409);
+    assert.equal((await request('users','POST',{name:'Weak',email:'weak@example.test',password:'short'},owner.cookie)).status,400);
+    assert.equal((await request('users/owner','PATCH',{active:false},owner.cookie)).status,400);
+    noSecrets(await (await request('users','GET',undefined,owner.cookie)).json());
+    await assert.rejects(authenticateAdmin({email:account.email,password:'wrong'}),error=>error.status===401);
+    const first = await login(account.email,initial);
+    assert.equal(first.user.must_change_password,true); noSecrets(first);
+    assert.equal((await request('products','GET',undefined,first.cookie)).status,403);
+    assert.equal((await request('users','POST',{name:'Escalation',email:'attack@example.test',password:initial},first.cookie)).status,403);
+    assert.equal((await request('password','POST',{current_password:'wrong',password:personal},first.cookie)).status,400);
+    const changed = await request('password','POST',{current_password:initial,password:personal},first.cookie);
+    assert.equal(changed.status,200); noSecrets(await changed.json());
+    const memberCookie = changed.headers.get('set-cookie').split(';')[0];
+    assert.equal((await request('session','GET',undefined,first.cookie)).status,401);
+    assert.equal((await request('products','GET',undefined,memberCookie)).status,200);
+    assert.equal((await request('users','GET',undefined,memberCookie)).status,403);
+    assert.equal((await request('users/'+account.id,'PATCH',{active:false},memberCookie)).status,403);
+    await assert.rejects(authenticateAdmin({email:account.email,password:initial}),error=>error.status===401);
+    const second = await login(account.email,personal);
+    assert.equal(second.user.must_change_password,false);
+    assert.equal((await request('users/'+account.id,'PATCH',{active:false},owner.cookie)).status,200);
+    assert.equal((await request('session','GET',undefined,memberCookie)).status,401);
+    assert.equal((await request('products','GET',undefined,second.cookie)).status,401);
+    await assert.rejects(authenticateAdmin({email:account.email,password:personal}),error=>error.status===401);
+    assert.equal((await request('users/'+account.id,'PATCH',{active:true},owner.cookie)).status,200);
+    assert.equal((await request('session','GET',undefined,second.cookie)).status,401);
+    const beforeReset = users[0].session_version;
+    assert.equal((await request('users/'+account.id+'/password','POST',{password:'new-initial-password-only'},owner.cookie)).status,200);
+    assert.notEqual(users[0].session_version,beforeReset);
+    assert.equal(users[0].must_change_password,true);
+    await assert.rejects(authenticateAdmin({email:account.email,password:personal}),error=>error.status===401);
+    const reset = await login(account.email,'new-initial-password-only');
+    assert.equal(reset.user.must_change_password,true);
+    revokeDuringChange = true;
+    assert.equal((await request('password','POST',{current_password:'new-initial-password-only',password:personal},reset.cookie)).status,401);
+    assert.equal(users[0].active,false);
+    databaseOk = false;
+    assert.equal((await request('users','GET',undefined,owner.cookie)).status,503);
+    assert.equal((await request('products','GET',undefined,owner.cookie)).status,200);
+    assert.equal((await request('products','GET',undefined,reset.cookie)).status,503);
+    const oldOwnerPassword = process.env.ADMIN_PASSWORD;
+    try {
+      process.env.ADMIN_PASSWORD = 'changed-owner-password-only';
+      assert.equal((await request('session','GET',undefined,owner.cookie)).status,401);
+    } finally { process.env.ADMIN_PASSWORD = oldOwnerPassword; }
   } finally { globalThis.fetch = originalFetch; }
 });

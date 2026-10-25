@@ -2,9 +2,10 @@ const $ = s => document.querySelector(s);
 const editor = $('#editor');
 let products = [], categories = [], editing = null;
 let gallery = [], editorBusy = false;
+let currentUser = null, adminUsers = [], resettingUser = null, usersLoading = false;
 const escape = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const message = text => { ($('#workspace').hidden ? $('#login-status') : $('#status')).textContent = text; };
-function showAccess() { document.title = 'Accesso amministratore · DomusFour'; $('#access').hidden = false; $('#workspace').hidden = true; $('#logout').hidden = true; $('#tickets').replaceChildren(); }
+function showAccess() { document.title = 'Accesso amministratore · DomusFour'; $('#access').hidden = false; $('#workspace').hidden = true; $('#logout').hidden = true; $('#tickets').replaceChildren(); $('#users-list').replaceChildren(); resetUserForm(); $('#password-form').reset(); currentUser = null; adminUsers = []; reset(); }
 async function api(path, method = 'GET', data) {
   const response = await fetch('/api/admin/' + path, { method, headers: { 'Content-Type': 'application/json' }, body: data ? JSON.stringify(data) : undefined });
   if (!response.headers.get('content-type')?.includes('application/json')) {
@@ -12,7 +13,7 @@ async function api(path, method = 'GET', data) {
   }
   const result = await response.json();
   if (response.status === 401) showAccess();
-  if (response.status === 403) throw new Error('Dominio non autorizzato. Apri l’admin su https://domusfour.it/admin.html e verifica SITE_URL su Render.');
+  if (response.status === 403 && result.error === 'Origine non consentita.') throw new Error('Dominio non autorizzato. Apri l’admin su https://domusfour.it/admin.html e verifica SITE_URL su Render.');
   if (!response.ok) throw new Error(result.error || 'Richiesta non riuscita.');
   return result;
 }
@@ -76,10 +77,14 @@ function openEditor() {
 const adminViews = {
   tickets: { title: 'Ticket e messaggi', description: 'Le richieste dei clienti, dal primo messaggio alla chiusura.' },
   products: { title: 'Prodotti', description: 'Aggiorna il catalogo, i prezzi e la visibilità dei tuoi articoli.' },
-  categories: { title: 'Categorie', description: 'Organizza i prodotti e crea nuove categorie per il catalogo.' }
+  categories: { title: 'Categorie', description: 'Organizza i prodotti e crea nuove categorie per il catalogo.' },
+  users: { title: 'Utenti', description: 'Crea accessi personali per i collaboratori e gestisci chi può entrare nel pannello.' },
+  password: { title: 'La tua password', description: 'Proteggi il tuo accesso con una password personale.' }
 };
 function setView(view, focus = false) {
   if (!Object.hasOwn(adminViews, view)) view = 'tickets';
+  if (currentUser?.must_change_password) view = 'password';
+  if ((view === 'users' && !currentUser?.owner) || (view === 'password' && currentUser?.owner)) view = 'tickets';
   document.querySelectorAll('[data-panel]').forEach(panel => { panel.hidden = panel.dataset.panel !== view; });
   document.querySelectorAll('[data-view]').forEach(link => {
     if (link.dataset.view === view) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
@@ -88,6 +93,7 @@ function setView(view, focus = false) {
   $('#view-description').textContent = adminViews[view].description;
   document.title = `${adminViews[view].title} · DomusFour Admin`;
   $('#status').textContent = '';
+  if (view === 'users') loadUsers();
   if (focus) { $('#view-title').focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'auto' }); }
 }
 window.addEventListener('hashchange', () => {
@@ -108,6 +114,16 @@ function render() {
   $('#products').innerHTML = visible.length ? visible.map(p => `<article class="admin-row"><img src="${escape(p.image)}" alt=""><div class="info"><h3 class="h6 mb-1">${escape(p.name)}</h3><span>${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(p.price)} · ${p.active ? 'Pubblicato' : 'Bozza'}${p.featured ? ' · In home' : ''}</span><small class="d-block text-body-secondary">${escape(p.id)}</small></div><div class="actions">${p.active ? `<a class="btn btn-outline-primary btn-sm" href="prodotto.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" aria-label="Apri scheda ${escape(p.name)}">Apri scheda</a>` : ''}<button class="btn btn-outline-primary btn-sm" data-edit="${escape(p.id)}" aria-label="Modifica ${escape(p.name)}">Modifica</button><button class="btn btn-outline-danger btn-sm" data-delete="${escape(p.id)}" aria-label="Elimina ${escape(p.name)}">Elimina</button></div></article>`).join('') : (query ? '<p>Nessun prodotto trovato. Prova un altro nome o codice.</p>' : '<p>Il catalogo è vuoto. Usa «Nuovo prodotto» per aggiungere il primo articolo.</p>');
 }
 async function load() {
+  currentUser = (await api('session')).user;
+  document.querySelectorAll('[data-view]').forEach(link => {
+    link.hidden = currentUser.must_change_password ? link.dataset.view !== 'password'
+      : link.dataset.view === 'users' ? !currentUser.owner : link.dataset.view === 'password' ? currentUser.owner : false;
+  });
+  $('#password-help').textContent = currentUser.must_change_password ? 'Prima di continuare devi sostituire la password iniziale con una personale, di almeno 16 caratteri.' : 'Usa una password diversa da quella attuale, di almeno 16 caratteri.';
+  if (currentUser.must_change_password) {
+    $('#access').hidden = true; $('#workspace').hidden = false; $('#logout').hidden = false;
+    setView('password'); return;
+  }
   const result = await Promise.all([api('products'), api('categories')]);
   products = result[0]; categories = result[1]; renderCategories(); render();
   $('#access').hidden = true; $('#workspace').hidden = false; $('#logout').hidden = false;
@@ -115,6 +131,62 @@ async function load() {
   setView(location.hash.slice(1));
   await loadTickets();
 }
+function resetUserForm() {
+  resettingUser = null; $('#user-form').reset();
+  $('#user-name-label').hidden = false; $('#user-email-label').hidden = false;
+  $('#user-form').elements.name.required = true; $('#user-form').elements.email.required = true;
+  $('#user-form-title').textContent = 'Aggiungi un utente'; $('#user-submit').textContent = 'Crea accesso'; $('#user-cancel').hidden = true;
+  $('#user-form-help').textContent = 'I collaboratori possono gestire prodotti, categorie e ticket. Solo tu puoi gestire gli accessi.';
+}
+async function loadUsers() {
+  if (!currentUser?.owner || usersLoading) return;
+  usersLoading = true; $('#users-refresh').disabled = true; $('#users-status').textContent = 'Caricamento accessi…';
+  try {
+    adminUsers = await api('users');
+    $('#users-list').innerHTML = adminUsers.map(user => `<article class="admin-user-row"><h3>${escape(user.name)}</h3><p>${escape(user.email)}</p><span class="admin-user-state">${user.owner ? 'Proprietario · accesso principale' : !user.active ? 'Accesso disattivato' : user.must_change_password ? 'Attivo · password iniziale da cambiare' : 'Accesso attivo'}</span>${user.owner ? '<p>Questo accesso è gestito dalle variabili su Render e non può essere disattivato qui.</p>' : `<div class="actions"><button type="button" class="btn btn-outline-primary btn-sm" data-user-active="${escape(user.id)}">${user.active ? 'Disattiva accesso' : 'Riattiva accesso'}</button><button type="button" class="btn btn-outline-secondary btn-sm" data-user-password="${escape(user.id)}">Reimposta password</button></div>`}</article>`).join('');
+    $('#users-status').textContent = `${adminUsers.length} ${adminUsers.length === 1 ? 'accesso' : 'accessi'}. Le disattivazioni revocano anche le sessioni già aperte.`;
+  } catch (error) { $('#users-status').textContent = error.message; }
+  finally { usersLoading = false; $('#users-refresh').disabled = false; }
+}
+$('#users-refresh').onclick = loadUsers;
+$('#user-cancel').onclick = () => { resetUserForm(); $('#user-form-status').textContent = ''; };
+$('#users-list').addEventListener('click', async event => {
+  const button = event.target.closest('[data-user-active],[data-user-password]'); if (!button) return;
+  const user = adminUsers.find(user => user.id === (button.dataset.userActive || button.dataset.userPassword)); if (!user || user.owner) return;
+  if (button.dataset.userPassword) {
+    resettingUser = user.id; $('#user-form').reset();
+    $('#user-name-label').hidden = true; $('#user-email-label').hidden = true;
+    $('#user-form').elements.name.required = false; $('#user-form').elements.email.required = false;
+    $('#user-form-title').textContent = 'Reimposta password'; $('#user-submit').textContent = 'Salva password iniziale'; $('#user-cancel').hidden = false;
+    $('#user-form-help').textContent = `Imposta una nuova password iniziale per ${user.name}. Le sessioni aperte verranno revocate e l’utente dovrà cambiarla al prossimo accesso.`;
+    $('#user-form-status').textContent = ''; $('#user-form').elements.password.focus(); return;
+  }
+  if (user.active && !confirm(`Disattivare l’accesso di ${user.name}? Anche le sessioni già aperte perderanno l’accesso.`)) return;
+  button.disabled = true;
+  try { await api(`users/${user.id}`, 'PATCH', {active: !user.active}); await loadUsers(); }
+  catch (error) { $('#users-status').textContent = error.message; }
+  finally { button.disabled = false; }
+});
+$('#user-form').addEventListener('submit', async event => {
+  event.preventDefault(); const form = event.target; if (!form.reportValidity()) return;
+  const data = Object.fromEntries(new FormData(form)); const resetting = resettingUser;
+  $('#user-fields').disabled = true; $('#user-form-status').textContent = resetting ? 'Aggiornamento in corso…' : 'Creazione accesso…';
+  try {
+    await api(resetting ? `users/${resetting}/password` : 'users', 'POST', resetting ? {password:data.password} : data);
+    resetUserForm(); await loadUsers();
+    $('#user-form-status').textContent = resetting ? 'Password reimpostata. Comunica personalmente la nuova password iniziale all’utente.' : 'Accesso creato. Comunica personalmente email e password iniziale all’utente: potrà entrare dalla stessa pagina admin.';
+  } catch (error) { form.elements.password.value = ''; $('#user-form-status').textContent = error.message; }
+  finally { $('#user-fields').disabled = false; }
+});
+$('#password-form').addEventListener('submit', async event => {
+  event.preventDefault(); const form = event.target; if (!form.reportValidity()) return;
+  if (form.elements.password.value !== form.elements.confirmation.value) { $('#password-status').textContent = 'Le nuove password non coincidono.'; return; }
+  const data = {current_password:form.elements.current_password.value,password:form.elements.password.value};
+  $('#password-fields').disabled = true; $('#password-status').textContent = 'Salvataggio in corso…';
+  try { await api('password', 'POST', data); form.reset(); $('#password-status').textContent = 'Password aggiornata.'; history.replaceState(null,'','#tickets'); await load(); message('Password aggiornata. Puoi usare il pannello.'); }
+  catch (error) { form.reset(); $('#password-status').textContent = error.message; }
+  finally { $('#password-fields').disabled = false; }
+});
 let ticketOffset = 0, ticketsLoading = false;
 const ticketStates = { new: 'Nuovo', in_progress: 'In lavorazione', closed: 'Chiuso' };
 const ticketCode = ticket => `DF-${String(ticket.ticket_number).padStart(6, '0')}`;
@@ -209,4 +281,4 @@ editor.addEventListener('submit', async event => {
   busyEditor(true);
   try { await api('products' + (editing ? '/' + encodeURIComponent(editing) : ''), editing ? 'PUT' : 'POST', data); reset(); await load(); message('Prodotto salvato. Il catalogo è aggiornato.'); } catch (error) { message(error.message); } finally { busyEditor(false); }
 });
-(async () => { try { await api('session'); await load(); } catch (error) { if (error.message !== 'Accedi come amministratore.') message(error.message); } })();
+(async () => { try { await load(); } catch (error) { if (error.message !== 'Accedi come amministratore.') message(error.message); } })();

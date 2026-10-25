@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
-import { createHmac, createHash, timingSafeEqual, scryptSync, randomBytes } from 'node:crypto';
+import { createHmac, createHash, timingSafeEqual, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { database, resend, prepareProduct, validateCategory } from './services.js';
 import { handleContact } from './contact.js';
@@ -10,6 +10,7 @@ import { validTicketId, sendTicketReceipt } from './tickets.js';
 import { newsletterConfirmationEmail } from './emails.js';
 import { newsletterSegmentId, assignNewsletterSegment } from './newsletter.js';
 import { uploadProductImage } from './images.js';
+import { authenticateAdmin, authorizeAdmin, sessionUser, requireOwner, listAdminUsers, createAdminUser, updateAdminUser, changeAdminPassword } from './admin-users.js';
 
 const root = fileURLToPath(new URL('../public/', import.meta.url)).replace(/[\\/]$/, '');
 const site = () => new URL(process.env.SITE_URL || 'http://localhost:3000');
@@ -37,10 +38,11 @@ async function body(req) {
   for await (const chunk of req) { result += chunk; if (Buffer.byteLength(result) > 16384) fail(413, 'Richiesta troppo grande.'); }
   try { return JSON.parse(result); } catch { fail(400, 'Richiesta non valida.'); }
 }
-function admin(req) {
+async function admin(req) {
   const cookie = /(?:^|; )dn_admin=([^;]+)/.exec(req.headers.cookie || '');
-  if (!verify(cookie?.[1], 'admin')) fail(401, 'Accedi come amministratore.');
+  return authorizeAdmin(verify(cookie?.[1], 'admin'));
 }
+const adminToken = user => sign({ type: 'admin', sub: user.id, version: user.session_version, exp: Date.now() + 28800000, nonce: randomBytes(16).toString('hex') });
 const cookie = token => `dn_admin=${token}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=${token ? 28800 : 0}${site().protocol === 'https:' ? '; Secure' : ''}`;
 export const server = http.createServer(async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -67,18 +69,34 @@ export const server = http.createServer(async (req, res) => {
       }
       if (path === '/api/admin/login' && req.method === 'POST') {
         limit(req, path, 10);
-        const data = await body(req);
-        if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 16) fail(503, 'Accesso amministratore da configurare.');
-        const hash = value => scryptSync(String(value || ''), 'domus-admin', 32);
-        if (!timingSafeEqual(hash(data.password), hash(process.env.ADMIN_PASSWORD)) || data.email !== process.env.ADMIN_EMAIL) fail(401, 'Credenziali non valide.');
-        res.setHeader('Set-Cookie', cookie(sign({ type: 'admin', exp: Date.now() + 28800000, nonce: randomBytes(16).toString('hex') })));
-        return json({ ok: true });
+        const user = await authenticateAdmin(await body(req));
+        res.setHeader('Set-Cookie', cookie(adminToken(user)));
+        return json({ ok: true, user: sessionUser(user) });
       }
       if (path.startsWith('/api/admin/')) {
-        admin(req);
-        if (path === '/api/admin/images' && req.method === 'POST') { limit(req, path, 60); return json(await uploadProductImage(req), 201); }
-        if (path === '/api/admin/session' && req.method === 'GET') return json({ ok: true });
+        const currentUser = await admin(req);
+        if (path === '/api/admin/session' && req.method === 'GET') return json({ ok: true, user: sessionUser(currentUser) });
         if (path === '/api/admin/logout' && req.method === 'POST') { res.setHeader('Set-Cookie', cookie('')); return json({ ok: true }); }
+        if (path === '/api/admin/password' && req.method === 'POST') {
+          limit(req, path, 10);
+          const user = await changeAdminPassword(currentUser, await body(req));
+          res.setHeader('Set-Cookie', cookie(adminToken(user)));
+          return json({ ok: true, user: sessionUser(user) });
+        }
+        if (currentUser.must_change_password) fail(403, 'Cambia la password iniziale prima di accedere al pannello.');
+        if (path === '/api/admin/users' && ['GET','POST'].includes(req.method)) {
+          requireOwner(currentUser);
+          if (req.method === 'GET') return json(await listAdminUsers());
+          limit(req, path, 30);
+          return json(await createAdminUser(await body(req)), 201);
+        }
+        const userMatch = /^\/api\/admin\/users\/([^/]+)(\/password)?$/.exec(path);
+        if (userMatch && ((userMatch[2] && req.method === 'POST') || (!userMatch[2] && req.method === 'PATCH'))) {
+          requireOwner(currentUser);
+          limit(req, '/api/admin/users', 30);
+          return json(await updateAdminUser(userMatch[1], await body(req), !!userMatch[2]));
+        }
+        if (path === '/api/admin/images' && req.method === 'POST') { limit(req, path, 60); return json(await uploadProductImage(req), 201); }
         if (path === '/api/admin/tickets' && req.method === 'GET') {
           const offset = Number(url.searchParams.get('offset') || 0);
           const status = url.searchParams.get('status');
