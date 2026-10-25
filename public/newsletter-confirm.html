@@ -1,2 +1,29 @@
-<!doctype html><html lang="it"><head>
-  <meta name="referrer" content="no-referrer"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Conferma iscrizione · Domus Neapolis</title><link href="vendor/fonts/fonts.css" rel="stylesheet"><link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet"><link href="css/custom.css" rel="stylesheet"><link href="css/admin.css" rel="stylesheet"></head><body><header class="admin-header"><a href="index.html" class="wordmark">DOMUS<small>NEAPOLIS</small></a><a href="napoli.html#prodotti">Visita il catalogo</a></header><main class="admin-main"><section class="admin-access"><h1>Ci siamo quasi.</h1><p>Conferma di voler ricevere novità e offerte da Domus Neapolis.</p><p class="small">Leggi l’<a href="privacy.html#newsletter">informativa newsletter</a>. Puoi revocare il consenso in ogni momento tramite il link di disiscrizione delle newsletter o scrivendo a <a href="mailto:domusfour44@domusfour.it?subject=Disiscrizione%20newsletter">domusfour44@domusfour.it</a>.</p><button class="btn btn-primary" data-confirm-newsletter>Conferma iscrizione</button><p role="status" class="mt-3"></p><a href="index.html">Torna alla home</a></section></main><script src="js/newsletter.js"></script></body></html>
+<!doctype html>
+<html lang="it" data-bs-theme="light">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+  <title>Conferma iscrizione · DomusFour</title>
+  <link href="vendor/fonts/fonts.css" rel="stylesheet"><link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet"><link href="css/custom.css" rel="stylesheet"><link href="css/newsletter-confirm.css" rel="stylesheet">
+  <script src="js/theme.js"></script>
+</head>
+<body class="confirmation-page">
+  <header class="confirmation-header">
+    <a class="confirmation-brand" href="index.html" aria-label="DomusFour, torna alla home"><img src="assets/img/skyline-light.webp" class="logo-light" width="76" height="32" alt=""><img src="assets/img/skyline-dark.webp" class="logo-dark" width="76" height="32" alt=""><span class="wordmark">DOMUS<small>Four</small></span></a>
+    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Cambia tema chiaro o scuro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 13.1A9 9 0 0 1 10.9 3.2 9 9 0 1 0 20.8 13.1Z"/></svg></button>
+  </header>
+  <main class="confirmation-main">
+    <section class="confirmation-card" data-confirmation data-state="ready" aria-labelledby="confirmation-title">
+      <div class="confirmation-symbol" aria-hidden="true"><svg viewBox="0 0 32 32" data-confirm-icon><rect x="4" y="7" width="24" height="18" rx="3"/><path d="m5 9 11 9L27 9"/></svg></div>
+      <h1 id="confirmation-title" tabindex="-1">Un ultimo passo.</h1>
+      <p class="confirmation-intro" id="confirmation-description">Conferma la tua iscrizione per ricevere<br class="confirmation-desktop-break"> novità e offerte da DomusFour.</p>
+      <div class="confirmation-actions"><button class="btn btn-primary" type="button" data-confirm-newsletter>Conferma la mia iscrizione<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button><a class="btn btn-primary" href="index.html#newsletter" data-confirm-restart hidden>Richiedi un nuovo link</a><a class="confirmation-return" href="index.html" data-confirm-return>Torna al sito</a></div>
+      <p class="confirmation-status" role="status" aria-live="polite"></p>
+      <div class="confirmation-note"><p>Solo le novità che scegli di ricevere.<br>Puoi disiscriverti in qualsiasi momento.</p><a href="privacy.html#newsletter">Leggi l’informativa privacy</a></div>
+      <noscript><p class="confirmation-noscript">Per confermare l’iscrizione attiva JavaScript nel browser e riapri il link ricevuto via email.</p></noscript>
+    </section>
+  </main>
+  <footer class="confirmation-footer"><span>DomusFour · Un pezzo di Napoli, con te.</span><nav aria-label="Informazioni"><a href="privacy.html">Privacy</a><a href="cookie.html">Cookie</a><a href="contatti.html">Contatti</a></nav></footer>
+  <script src="js/newsletter.js"></script>
+</body>
+</html>
