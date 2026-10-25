@@ -50,6 +50,12 @@ L'admin permette creazione, modifica, eliminazione con conferma, ricerca, pubbli
 
 ## Newsletter Resend
 
+### Inserimento automatico nel segmento
+
+In Resend crea un segmento, per esempio **Newsletter DomusFour**, e copia il suo ID. Aggiungi `RESEND_SEGMENT_ID` nelle variabili d'ambiente del backend Render e fai il deploy. Dopo la conferma via email, il sito crea il contatto e lo assegna al segmento nella stessa chiamata API Resend (`segments: [{ id: ... }]`). Senza questa variabile il contatto viene creato come prima, senza assegnazione automatica. È necessaria una chiave API con accesso alla gestione contatti.
+
+Il sito registra la sincronizzazione solo dopo la riuscita dell'operazione: un segmento inesistente o un errore Resend non produce una falsa conferma riuscita; il cliente può riprovare usando il link ancora valido. I ticket non vengono aggiunti al segmento. Gli iscritti già confermati prima della configurazione non sono trasferiti retroattivamente: aggiungili una sola volta da Resend, mantenendo lo stato di disiscrizione. La modifica non crea o invia campagne: per ciascun Broadcast scegli il segmento **Newsletter DomusFour** come destinatario.
+
 Eseguire anche `supabase/004_newsletter_consent.sql` prima del deploy della versione privacy: conserva la prova di conferma e impedisce che lo stesso link già confermato ripeta l'iscrizione. Prima della pubblicazione completare le verifiche in `PRIVACY_OPERATIONS.md`, compresi identità effettiva del titolare, configurazione fornitori, tempi di conservazione e disiscrizione. Le informative non sostituiscono queste impostazioni operative.
 
 In Resend aggiungi e verifica **domusfour.it**, inserendo i record DNS richiesti nella gestione del dominio. L'indirizzo domusfour44@domusfour.it è il mittente, il dominio da verificare è domusfour.it. Non cambiare i record del servizio di posta esistente senza verificarne lo scopo.

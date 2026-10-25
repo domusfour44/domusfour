@@ -119,12 +119,14 @@ export const server = http.createServer(async (req, res) => {
         const token = (await body(req)).token;
         const data = verify(token, 'newsletter');
         if (!data || data.privacy_version !== '2026-10-25') fail(400, 'Link non valido o scaduto. Iscriviti nuovamente dalla home.');
+        const segmentId = process.env.RESEND_SEGMENT_ID?.trim();
+        if (segmentId && !validTicketId(segmentId)) fail(503, 'Configurazione newsletter non valida.');
         const confirmationId = createHash('sha256').update(token).digest('hex');
         const recordPath = `newsletter_consents?confirmation_id=eq.${confirmationId}`;
         const existing = await database(recordPath);
         if (existing[0]?.synced) return json({ ok: true, message: 'Questa iscrizione è già stata confermata.' });
         if (!existing.length) await database('newsletter_consents', { method: 'POST', body: JSON.stringify({ confirmation_id: confirmationId, email: data.email, requested_at: data.consent_at, privacy_version: data.privacy_version }) });
-        await resend('contacts', { email: data.email, unsubscribed: false });
+        await resend('contacts', { email: data.email, unsubscribed: false, ...(segmentId ? { segments: [{ id: segmentId }] } : {}) });
         await database(recordPath, { method: 'PATCH', body: JSON.stringify({ synced: true }) });
         return json({ ok: true, message: 'Iscrizione confermata. Grazie!' });
       }

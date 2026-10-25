@@ -37,6 +37,8 @@ test('private files and dormant customer authentication are not served', async (
 });
 test('catalog and CRUD forward validated data to Supabase; newsletter waits for confirmation', async () => {
   const originalFetch = globalThis.fetch;
+  const previousSegment = process.env.RESEND_SEGMENT_ID;
+  process.env.RESEND_SEGMENT_ID = '44444444-4444-4444-8444-444444444444';
   const calls = [];
   const consentRecords = [];
   process.env.SUPABASE_URL = 'https://database.example.test';
@@ -88,6 +90,8 @@ test('catalog and CRUD forward validated data to Supabase; newsletter waits for 
     const confirmation=await fetch(base+'/api/newsletter/confirm',{method:'POST',headers:{Origin:base},body:JSON.stringify({token})});
     assert.equal(confirmation.status,200);
     assert.equal(calls.filter(c => /\/contacts$/.test(c.url)).length,1);
+    const contact = JSON.parse(calls.find(c => /\/contacts$/.test(c.url)).body);
+    assert.deepEqual(contact.segments,[{id:process.env.RESEND_SEGMENT_ID}]);
     assert.equal(consentRecords[0].email,'test@example.test');
     assert.equal(consentRecords[0].privacy_version,'2026-10-25');
     assert.equal(consentRecords[0].synced,true);
@@ -95,7 +99,7 @@ test('catalog and CRUD forward validated data to Supabase; newsletter waits for 
     const repeated=await fetch(base+'/api/newsletter/confirm',{method:'POST',headers:{Origin:base},body:JSON.stringify({token})});
     assert.equal(repeated.status,200);
     assert.equal(calls.filter(c => /\/contacts$/.test(c.url)).length,1);
-  } finally { globalThis.fetch = originalFetch; }
+  } finally { globalThis.fetch = originalFetch; if (previousSegment === undefined) delete process.env.RESEND_SEGMENT_ID; else process.env.RESEND_SEGMENT_ID = previousSegment; }
 });
 test('legacy contact CORS remains limited to contacts and health stays available', async () => {
   assert.equal((await fetch(base+'/health')).status,200);
@@ -217,4 +221,44 @@ test('categories persist, reject duplicates and validate product assignments beh
     assert.equal(invalid.status,400);
     assert.equal(products.length,1);
   } finally { globalThis.fetch = originalFetch; }
+});
+test('newsletter segment failure leaves the opt-in retryable without marking it synced', async () => {
+  const originalFetch = globalThis.fetch;
+  const oldSegment = process.env.RESEND_SEGMENT_ID;
+  process.env.RESEND_SEGMENT_ID = '55555555-5555-4555-8555-555555555555';
+  let receipt, synced = false, available = false, contactCalls = 0;
+  const records = [];
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).startsWith(base)) return originalFetch(url,options);
+    const reply = (data,status=200) => new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+    if (String(url).endsWith('/emails')) { receipt = JSON.parse(options.body); return reply({id:'email'}); }
+    if (String(url).includes('/newsletter_consents')) {
+      if (options.method === 'POST') records.push({...JSON.parse(options.body),synced:false});
+      if (options.method === 'PATCH') { synced = true; records[0].synced = true; }
+      return reply(records);
+    }
+    if (String(url).endsWith('/contacts')) {
+      contactCalls++;
+      assert.deepEqual(JSON.parse(options.body).segments,[{id:process.env.RESEND_SEGMENT_ID}]);
+      return available ? reply({id:'contact'}) : reply({error:'Segment unavailable'},502);
+    }
+    throw new Error('Unexpected request');
+  };
+  try {
+    const post = data => ({method:'POST',headers:{Origin:base},body:JSON.stringify(data)});
+    assert.equal((await fetch(base+'/api/newsletter',post({email:'segment@example.test',consent:true}))).status,200);
+    assert.equal(contactCalls,0);
+    const token = new URL(/https?:\/\/\S+/.exec(receipt.text)[0]).searchParams.get('token');
+    assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,502);
+    assert.equal(synced,false);
+    available = true;
+    assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,200);
+    assert.equal(synced,true);
+    assert.equal(records.length,1);
+    assert.equal((await fetch(base+'/api/newsletter/confirm',post({token}))).status,200);
+    assert.equal(contactCalls,2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (oldSegment === undefined) delete process.env.RESEND_SEGMENT_ID; else process.env.RESEND_SEGMENT_ID = oldSegment;
+  }
 });
