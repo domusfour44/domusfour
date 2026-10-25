@@ -1,106 +1,63 @@
 <!doctype html>
-<html lang="it">
-
-<head>
-  <meta name="referrer" content="no-referrer">
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="robots" content="noindex,nofollow">
-    <title>Gestione prodotti · Domus Neapolis</title>
-    <link href="vendor/fonts/fonts.css" rel="stylesheet">
-    <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
-    <link href="css/custom.css" rel="stylesheet">
-    <link href="css/admin.css" rel="stylesheet">
-</head>
-
-<body>
-    <header class="admin-header"><a href="index.html" class="wordmark">DOMUS<small>NEAPOLIS</small></a><a
-            href="napoli.html#prodotti">Visita il catalogo</a></header>
-    <main class="admin-main">
-        <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
-            <div>
-                <h1>I tuoi prodotti</h1>
-                <p>Prodotti, prezzi e dettagli. Tutto da un unico posto.</p>
-            </div><button id="logout" class="btn btn-outline-primary" hidden>Esci</button>
-        </div>
-        <p id="status" role="status" aria-live="polite"></p>
-        <section id="access" class="admin-access">
-            <h2 class="h4">Accesso amministratore</h2>
-            <form id="login"><label class="form-label d-block">Email<input class="form-control" name="email"
-                        type="email" required autocomplete="username"></label><label
-                    class="form-label d-block">Password<input class="form-control" name="password" type="password"
-                        required autocomplete="current-password"></label><button class="btn btn-primary">Accedi</button>
+<html lang="it"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+  <title>Amministrazione · DomusFour</title>
+  <link href="vendor/fonts/fonts.css" rel="stylesheet"><link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet"><link href="css/custom.css" rel="stylesheet"><link href="css/admin.css" rel="stylesheet">
+</head><body class="admin-page">
+  <a class="admin-skip" href="#admin-main">Vai al contenuto</a>
+  <section id="access" class="admin-access">
+    <a class="admin-login-logo" href="index.html">DOMUS<span>FOUR</span></a>
+    <h1>Accesso amministratore</h1><p class="admin-muted">Gestisci prodotti, categorie e richieste dei clienti.</p>
+    <form id="login">
+      <label class="form-label" for="admin-email">Email</label><input class="form-control" id="admin-email" name="email" type="email" required autocomplete="username">
+      <label class="form-label" for="admin-password">Password</label><input class="form-control" id="admin-password" name="password" type="password" required autocomplete="current-password">
+      <button class="btn btn-primary" type="submit">Accedi al pannello</button>
+    </form>
+    <p id="login-status" class="admin-feedback" role="status" aria-live="polite"></p><a class="admin-back-link" href="index.html">Torna al sito</a>
+  </section>
+  <div id="workspace" class="admin-shell" hidden>
+    <aside class="admin-sidebar">
+      <a class="admin-brand" href="index.html">DOMUS<span>FOUR</span></a>
+      <nav class="admin-nav" aria-label="Sezioni amministrazione">
+        <a href="#tickets" data-view="tickets" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8M8 12h5"/></svg><span>Ticket</span></a>
+        <a href="#products" data-view="products"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5zM3 8v9l9 5 9-5V8M12 13v9M7.5 5.5l9 5"/></svg><span>Prodotti</span></a>
+        <a href="#categories" data-view="categories"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1"/></svg><span>Categorie</span></a>
+      </nav>
+      <div class="admin-sidebar-footer"><span>Area amministrativa</span><button id="logout" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4v16h6M14 8l4 4-4 4M9 12h12"/></svg>Esci</button></div>
+    </aside>
+    <main id="admin-main" class="admin-content">
+      <header class="admin-page-header"><div><h1 id="view-title" tabindex="-1">Ticket e messaggi</h1><p id="view-description">Le richieste dei clienti, dal primo messaggio alla chiusura.</p></div><a class="admin-site-link" href="index.html">Apri il sito <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></a></header>
+      <p id="status" class="admin-feedback" role="status" aria-live="polite"></p>
+      <section data-panel="tickets" aria-labelledby="view-title">
+        <div class="admin-toolbar"><label class="form-label mb-0" for="tickets-filter">Mostra richieste<select id="tickets-filter" class="form-select"><option value="">Tutti gli stati</option><option value="new">Nuove</option><option value="in_progress">In lavorazione</option><option value="closed">Chiuse</option></select></label><button id="tickets-refresh" class="btn btn-outline-primary" type="button">Aggiorna</button></div>
+        <div class="admin-surface"><div class="admin-list-heading"><h2>Richieste ricevute</h2><span class="admin-muted">Apri un ticket per i dettagli</span></div><div id="tickets"></div><footer class="admin-pagination"><p id="tickets-status" role="status" aria-live="polite"></p><div><button id="tickets-prev" class="btn btn-outline-secondary btn-sm" type="button" disabled>Più recenti</button><button id="tickets-next" class="btn btn-outline-secondary btn-sm" type="button" disabled>Più vecchi</button></div></footer></div>
+      </section>
+      <section data-panel="products" aria-labelledby="view-title" hidden>
+        <div class="admin-toolbar"><label class="form-label mb-0 admin-search" for="search">Cerca nel catalogo<input id="search" class="form-control" type="search" placeholder="Nome o codice prodotto"></label><button class="btn btn-primary" id="new" type="button">Nuovo prodotto</button></div>
+        <div id="product-layout" class="admin-layout">
+          <section class="admin-surface admin-product-list"><div class="admin-list-heading"><h2>Il tuo catalogo</h2><span id="count" class="admin-muted"></span></div><div id="products"></div></section>
+          <section id="product-editor" class="admin-editor admin-surface" aria-labelledby="editor-title" hidden>
+            <div class="admin-editor-heading"><h2 id="editor-title">Nuovo prodotto</h2><button class="admin-close" id="cancel" type="button" aria-label="Chiudi editor"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <form id="editor">
+              <label class="form-label">Nome prodotto<input class="form-control" name="name" required maxlength="160" placeholder="es. San Gennaro"></label>
+              <label class="form-label">Codice univoco<input class="form-control" name="id" required pattern="[a-z0-9][a-z0-9-]{0,79}" placeholder="es. san-gennaro-oro"><span class="admin-field-help">Lettere minuscole, numeri e trattini. Non modificabile dopo il salvataggio.</span></label>
+              <div class="admin-form-pair"><label class="form-label">Categoria<select class="form-select" name="category" required><option value="">Caricamento categorie…</option></select></label><label class="form-label">Prezzo (€)<input class="form-control" name="price" type="number" required min="0" max="100000" step="0.01" placeholder="0,00"></label></div>
+              <label class="form-label">Immagine<input class="form-control" name="image" required placeholder="assets/img/nome-foto.jpeg"><span class="admin-field-help">Percorso di una foto già presente nel sito o URL HTTPS.</span></label>
+              <label class="form-label">Descrizione<textarea class="form-control" name="description" maxlength="3000" rows="3"></textarea></label>
+              <label class="form-label">Dimensioni e materiali<input class="form-control" name="details"></label>
+              <label class="form-label">Etichetta <span class="admin-muted">(facoltativa)</span><input class="form-control" name="badge" placeholder="es. Novità"></label>
+              <label class="form-label">Link acquisto esterno<input class="form-control" name="purchase_url" type="url" placeholder="https://…"></label>
+              <fieldset class="admin-publication"><legend>Visibilità</legend><label><input type="checkbox" name="active" checked> Pubblicato nel catalogo</label><label><input type="checkbox" name="featured"> In evidenza nella home</label></fieldset>
+              <div class="admin-editor-actions"><button class="btn btn-primary" type="submit">Salva prodotto</button><button class="btn btn-outline-secondary" id="discard" type="button">Annulla</button></div>
             </form>
-        </section>
-        <section id="workspace" hidden>
-            <section class="mb-5" aria-labelledby="tickets-title">
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-                    <h2 id="tickets-title" class="h4 mb-0">Ticket e messaggi</h2>
-                    <button id="tickets-refresh" class="btn btn-outline-primary btn-sm" type="button">Aggiorna ticket</button>
-                </div>
-                <label class="form-label">Stato
-                    <select id="tickets-filter" class="form-select">
-                        <option value="">Tutti</option><option value="new">Nuovi</option>
-                        <option value="in_progress">In lavorazione</option><option value="closed">Chiusi</option>
-                    </select>
-                </label>
-                <p id="tickets-status" class="small" role="status" aria-live="polite"></p>
-                <div id="tickets"></div>
-                <div class="d-flex gap-2 mt-3">
-                    <button id="tickets-prev" class="btn btn-outline-secondary btn-sm" type="button" disabled>Più recenti</button>
-                    <button id="tickets-next" class="btn btn-outline-secondary btn-sm" type="button" disabled>Più vecchi</button>
-                </div>
-            </section>
-            <section class="mb-5" aria-labelledby="categories-title">
-                <h2 id="categories-title" class="h4">Categorie</h2>
-                <p class="small mb-3" id="category-list">Caricamento categorie…</p>
-                <form id="category-form" class="d-flex flex-wrap align-items-end gap-2">
-                    <label class="form-label mb-0">Nome della nuova categoria
-                        <input class="form-control" name="name" required minlength="2" maxlength="80"
-                            placeholder="es. San Valentino" autocomplete="off">
-                    </label>
-                    <button class="btn btn-outline-primary" type="submit">Crea categoria</button>
-                </form>
-                <p id="category-status" class="small mt-2" role="status" aria-live="polite"></p>
-            </section>
-            <div class="admin-layout">
-                <section>
-                    <div class="d-flex justify-content-between gap-2 mb-3"><label class="flex-grow-1">Cerca un
-                            prodotto<input id="search" class="form-control" type="search"
-                                placeholder="Nome o codice"></label><button class="btn btn-primary align-self-end"
-                            id="new">Nuovo prodotto</button></div>
-                    <p id="count" class="small"></p>
-                    <div id="products"></div>
-                </section>
-                <section class="admin-editor" aria-labelledby="editor-title">
-                    <h2 id="editor-title" class="h4">Nuovo prodotto</h2>
-                    <form id="editor"><label class="form-label d-block">Codice univoco<input class="form-control"
-                                name="id" type="text" required pattern="[a-z0-9][a-z0-9-]{0,79}"
-                                placeholder="es. san-gennaro-oro"></label><label class="form-label d-block">Nome<input
-                                class="form-control" name="name" type="text" required maxlength="160"></label><label
-                            class="form-label d-block">Categoria<select class="form-select" name="category" required>
-                                <option value="">Caricamento categorie…</option>
-                            </select></label><label class="form-label d-block">Prezzo (€)<input class="form-control"
-                                name="price" type="number" required min="0" max="100000" step="0.01"></label><label
-                            class="form-label d-block">Immagine (URL HTTPS o assets/img/nome-file)<input
-                                class="form-control" name="image" type="text" required></label><label
-                            class="form-label d-block">Descrizione<textarea class="form-control" name="description"
-                                maxlength="3000" rows="3"></textarea></label><label
-                            class="form-label d-block">Dimensioni e materiali<input class="form-control" name="details"
-                                type="text"></label><label class="form-label d-block">Etichetta (facoltativa)<input
-                                class="form-control" name="badge" type="text"></label><label
-                            class="form-label d-block">Link acquisto esterno (facoltativo)<input class="form-control"
-                                name="purchase_url" type="url" placeholder="https://…"></label><label
-                            class="d-block mb-2"><input type="checkbox" name="active" checked> Pubblicato nel
-                            catalogo</label><label class="d-block mb-3"><input type="checkbox" name="featured"> In
-                            evidenza nella home</label><button class="btn btn-primary" type="submit">Salva
-                            prodotto</button> <button class="btn btn-outline-secondary" id="cancel"
-                            type="button">Annulla</button></form>
-                </section>
-            </div>
-        </section>
+          </section>
+        </div>
+      </section>
+      <section data-panel="categories" aria-labelledby="view-title" hidden>
+        <div class="admin-categories-layout"><section class="admin-surface"><div class="admin-list-heading"><h2>Categorie disponibili</h2></div><div id="category-list">Caricamento categorie…</div></section><section class="admin-surface admin-category-editor"><h2>Crea una categoria</h2><p class="admin-muted">Dopo averla creata, puoi assegnarla ai tuoi prodotti.</p><form id="category-form"><label class="form-label">Nome categoria<input class="form-control" name="name" required minlength="2" maxlength="80" placeholder="es. San Valentino" autocomplete="off"></label><button class="btn btn-primary" type="submit">Crea categoria</button></form><p id="category-status" class="admin-feedback" role="status" aria-live="polite"></p></section></div>
+      </section>
+      <footer class="admin-content-footer"><span>DomusFour</span><a href="privacy.html">Privacy</a><a href="cookie.html">Cookie</a></footer>
     </main>
-    <script src="js/admin.js"></script>
-</body>
-
-</html>
+  </div>
+  <script src="js/admin.js"></script>
+</body></html>
