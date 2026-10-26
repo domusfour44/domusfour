@@ -80,6 +80,7 @@ h1,h2,h3,h4,h5,h6{font-weight:800;letter-spacing:-.02em;line-height:1.1}
 .band-black{background:var(--dn-black);color:#f4efe3}
 .band-black .text-body-secondary{color:#b9af9b!important}
 .site-footer{border-top:3px solid var(--dn-gold)}
+.site-footer .footer-logo{display:block;width:200px;max-width:100%;height:auto;padding:16px;background:#fbf9f4;border:1px solid #b98227;border-radius:12px}
 .site-footer a{color:#b9af9b;text-decoration:none}
 .site-footer a:hover{color:#f4efe3}
 .site-footer h5{color:var(--dn-gold-text);font-size:1rem}
